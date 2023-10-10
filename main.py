@@ -4,15 +4,12 @@ from placement import *
 from visualization import *
 import networkx as nx
 
-#topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
-topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
+topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
+#topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
 
 # Adding server nodes
 network = NetworkGraph()
 network.load_topology(topology_dir+"26_usa.gml")
-
-
-
 
 # Getting server positions
 server_positions = network.get_server_positions()
@@ -28,13 +25,12 @@ network.add_nodes_from_keys(players)
 pos = {**server_positions, **players}
 
 server_decision = ServerPlacementAlgorithm(network)
-#for player in players.items():
-#    server_decision.connect_player_to_server(player, server_positions)
+for player in players.values():
+    server_decision.connect_player_to_server(player, server_positions)
 
 #player_position = (-113.26613033172009, 34.39212026283701)
-distances = {server: calculate_distance(player_position, server_positions[server]) for server in server_positions}
-print(distances)
-closest_server = min(distances, key=distances.get)
+#print(distances)
+#closest_server = min(distances, key=distances.get)
 
 # Drawing network decisions
 #visualization = Visualization(server_decision)
