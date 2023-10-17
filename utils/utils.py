@@ -27,8 +27,13 @@ def distance(pos1:tuple, pos2:tuple):
     return abs(float(pos1[0]) - float(pos2[0])) + abs(float(pos1[1]) - float(pos2[1]))
 
 def min_distance(point, points):
-    min_value = 1000000
-    for iter_point in points.values():
-        if distance(point, iter_point) < min_value:
-            min_value = distance(point, iter_point)
-    return min_value
+    min_value = float('inf')
+    key = None
+    
+    for iter_key, iter_point in points.items():
+        cur_dist = distance(point, iter_point)
+        if cur_dist < min_value:
+            min_value = cur_dist
+            key = iter_key
+
+    return min_value, key

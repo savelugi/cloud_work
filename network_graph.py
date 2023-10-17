@@ -1,4 +1,5 @@
 import networkx as nx
+from utils.utils import *
 
 class NetworkGraph:
     def __init__(self):
@@ -20,4 +21,13 @@ class NetworkGraph:
     
     def add_nodes_from_keys(self, nodes):
         self.graph.add_nodes_from(nodes.keys())
+
+    def connect_player_to_server(self, player_position, server_positions):
+        # Legközelebbi szerver kiválasztása:
+        distance, key = min_distance(player_position, server_positions)
+        print("player position:")
+        print(player_position)
+        print("server_position")
+        print(server_positions[key])
+        self.graph.add_edge(player_position, server_positions[key], weight=distance)
     

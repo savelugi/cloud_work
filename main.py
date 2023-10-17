@@ -21,17 +21,12 @@ long_range = (-123, -70) # from graph
 players = generate_players(num_players, long_range, lat_range)
 network.add_nodes_from_keys(players)
 
+for player in players.values():
+    network.connect_player_to_server(player, server_positions)
+
 # Preparing positions
 pos = {**server_positions, **players}
 
-server_decision = ServerPlacementAlgorithm(network)
-for player in players.values():
-    server_decision.connect_player_to_server(player, server_positions)
-
-#player_position = (-113.26613033172009, 34.39212026283701)
-#print(distances)
-#closest_server = min(distances, key=distances.get)
-
 # Drawing network decisions
-#visualization = Visualization(server_decision)
-#visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=300, show_edge_labels=False)
+visualization = Visualization(network)
+visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=300, show_edge_labels=False)
