@@ -4,8 +4,8 @@ from placement import *
 from visualization import *
 import networkx as nx
 
-#topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
-topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
+topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
+#topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
 
 # Adding server nodes
 network = NetworkGraph()
@@ -29,4 +29,4 @@ pos = {**server_positions, **players}
 
 # Drawing network decisions
 visualization = Visualization(network)
-visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=300, show_edge_labels=False)
+visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=30, show_edge_labels=False)

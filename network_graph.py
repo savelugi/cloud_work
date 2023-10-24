@@ -26,13 +26,5 @@ class NetworkGraph:
         # Legközelebbi szerver kiválasztása:
         distance, key = min_distance(players[player_position], server_positions)
         key_list = list(server_positions.keys())
-        print(key_list)
-        print("player position:")
-        print(players[player_position])
-        print(player_position)
-        print("server_position")
-        print(key_list[key])
-        print(server_positions[key])
-
-        self.graph.add_edge(players[player_position], server_positions[key], weight=distance)
+        self.graph.add_edge(player_position, key_list[int(key)], weight=distance)
     

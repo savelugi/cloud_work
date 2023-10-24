@@ -9,9 +9,9 @@ class Visualization:
         plt.figure(figsize=canvas_size)
         
         # Szerverek kirajzolása
-        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=servers.keys(), node_color='b', node_size=2.5*node_size, label="Servers")
+        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=servers.keys(), node_color='b', node_size=2.5*node_size)
         # Játékosok kirajzolása
-        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=players.keys(), node_color='g', node_size=node_size, label="Players")
+        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=players.keys(), node_color='g', node_size=node_size)
 
         print(self.network_graph.graph.edges())
 
