@@ -22,12 +22,17 @@ class NetworkGraph:
     def add_nodes_from_keys(self, nodes):
         self.graph.add_nodes_from(nodes.keys())
 
-    def connect_player_to_server(self, player_position, server_positions):
+    def connect_player_to_server(self, players, player_position, server_positions):
         # Legközelebbi szerver kiválasztása:
-        distance, key = min_distance(player_position, server_positions)
+        distance, key = min_distance(players[player_position], server_positions)
+        key_list = list(server_positions.keys())
+        print(key_list)
         print("player position:")
+        print(players[player_position])
         print(player_position)
         print("server_position")
+        print(key_list[key])
         print(server_positions[key])
-        self.graph.add_edge(player_position, server_positions[key], weight=distance)
+
+        self.graph.add_edge(players[player_position], server_positions[key], weight=distance)
     
