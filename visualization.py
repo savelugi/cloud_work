@@ -13,8 +13,6 @@ class Visualization:
         # Játékosok kirajzolása
         nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=players.keys(), node_color='g', node_size=node_size)
 
-        print(self.network_graph.graph.edges())
-
         # Élek kirajzolása
         nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=self.network_graph.graph.edges(), width=1.0, alpha=0.5)
 

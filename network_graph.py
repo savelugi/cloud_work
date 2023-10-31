@@ -26,4 +26,5 @@ class NetworkGraph:
         distance, key = min_distance(players[player_position], server_positions)
         key_list = list(server_positions.keys())
         self.graph.add_edge(player_position, key_list[int(key)], weight=distance)
+
     
