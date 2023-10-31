@@ -23,7 +23,6 @@ class NetworkGraph:
         self.graph.add_nodes_from(nodes.keys())
 
     def connect_player_to_server(self, players, player_position, server_positions):
-        # Legközelebbi szerver kiválasztása:
         distance, key = min_distance(players[player_position], server_positions)
         key_list = list(server_positions.keys())
         self.graph.add_edge(player_position, key_list[int(key)], weight=distance)
