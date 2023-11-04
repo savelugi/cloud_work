@@ -4,8 +4,8 @@ from placement import *
 from visualization import *
 from gurobi import *
 
-#topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
-topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
+topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
+#topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
 
 # Adding server nodes
 network = NetworkGraph()
@@ -24,14 +24,27 @@ network.add_nodes_from_keys(players)
 # for player in players:
 #     network.connect_player_to_server(players, player, server_positions)
 
+
+
+# # Preparing positions
+# pos = {**server_positions, **players}
+
+# # Drawing network decisions
+# visualization = Visualization(network)
+# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=30, show_edge_labels=False)
+
 model = grb.Model()
-placement = model.addVars(server_positions, vtype=grb.GRB.BINARY, name="server_placement")
-total_delay = model.addVar(vtype=grb.GRB.INTEGER, name="total_delay")
 
+# Változók: Játékosok és szerverek közötti útvonal
+paths = {}
+for player in players:
+    for server in server_positions:
+        paths[(player, server)] = model.addVar(vtype=grb.GRB.BINARY, name=f"path_{player}_{server}")
 
-# Preparing positions
-pos = {**server_positions, **players}
+# Cél: Késleltetés minimalizálása
+total_delay = model.addVar(vtype=grb.GRB.CONTINUOUS, name="total_delay")
 
-# Drawing network decisions
-visualization = Visualization(network)
-visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=30, show_edge_labels=False)
+# Korlátok hozzáadása
+for player in players:
+    for server in server_positions:
+        model.addConstr(total_delay >= paths[(player, server)] * network_map[player][server])
