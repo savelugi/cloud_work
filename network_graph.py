@@ -27,4 +27,12 @@ class NetworkGraph:
         key_list = list(server_positions.keys())
         self.graph.add_edge(player_position, key_list[int(key)], weight=distance)
 
+    def get_delay(self, node1, node2):
+        try:
+            delay = nx.shortest_path_length(self.graph, node1, node2, weight='weight')
+            return delay
+        except nx.NetworkXNoPath:
+            # Ha nincs útvonal a két pont között
+            return float('inf')
+
     
