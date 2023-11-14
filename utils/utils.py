@@ -8,8 +8,8 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100)):
     y_start, y_stop = y_range
     for i in range(num_players):
         player_name = f"P{i+1}"
-        x = random.uniform(x_start, x_stop)
-        y = random.uniform(y_start, y_stop)
+        x = round(random.uniform(x_start, x_stop), 2)
+        y = round(random.uniform(y_start, y_stop), 2)
         players[player_name] = (x, y)
     return players
 

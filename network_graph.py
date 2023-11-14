@@ -20,8 +20,10 @@ class NetworkGraph:
         return server_positions
     
     def add_nodes_from_keys(self, nodes):
-        self.graph.add_nodes_from(nodes.keys())
-
+        for node_name, coordinates in nodes.items():
+            x, y = coordinates
+            self.graph.add_node(node_name, Latitude=x, Longitude=y)
+    
     def connect_player_to_server(self, players, player_position, server_positions):
         distance, key = min_distance(players[player_position], server_positions)
         key_list = list(server_positions.keys())
@@ -29,10 +31,27 @@ class NetworkGraph:
 
     def get_delay(self, node1, node2):
         try:
-            delay = nx.shortest_path_length(self.graph, node1, node2, weight='weight')
+            delay = nx.shortest_path_length(self.graph, node1, node2, weight='length')
             return delay
         except nx.NetworkXNoPath:
             # Ha nincs útvonal a két pont között
             return float('inf')
-
+        
+    def get_nodes(self):
+        return(self.graph.nodes())
     
+    def get_edges(self):
+        return list(self.graph.edges())
+    
+    def print_node_positions(self):
+        for node_id, position in self.graph.nodes(data=True):
+            print(f"{node_id} : {position}")
+    
+    def print_graph_positions(self):
+        print("Nodes:")
+        for node_id, position in self.graph.nodes(data=True):
+            print(f"{node_id} : {position}")
+
+        print("\nEdges:")
+        for edge in self.graph.edges(data=True):
+            print(f"{edge[0]} - {edge[1]} : {edge[2]}")
