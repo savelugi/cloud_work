@@ -18,7 +18,7 @@ class Visualization:
 
         # Él súlyok (távolságok) hozzáadása
         if show_edge_labels:
-            edge_labels = {(player, server): self.network_graph.graph[player][server]["weight"] for player, server in self.network_graph.graph.edges}
+            edge_labels = {(player, server): round(self.network_graph.graph[player][server]["length"]) for player, server in self.network_graph.graph.edges}
             nx.draw_networkx_edge_labels(self.network_graph.graph, pos, edge_labels=edge_labels)
 
         # Címkék hozzáadása a csomópontokhoz

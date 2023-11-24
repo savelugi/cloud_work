@@ -27,9 +27,9 @@ class NetworkGraph:
     def connect_player_to_server(self, players, player_position, server_positions):
         distance, key = min_distance(players[player_position], server_positions)
         key_list = list(server_positions.keys())
-        self.graph.add_edge(player_position, key_list[int(key)], weight=distance)
+        self.graph.add_edge(player_position, key_list[int(key)], length=distance)
 
-    def get_delay(self, node1, node2):
+    def get_path_delay(self, node1, node2):
         try:
             delay = nx.shortest_path_length(self.graph, node1, node2, weight='length')
             return delay
@@ -46,12 +46,17 @@ class NetworkGraph:
     def print_node_positions(self):
         for node_id, position in self.graph.nodes(data=True):
             print(f"{node_id} : {position}")
+
+    def print_edge_positions(self):
+        for edge in self.graph.edges(data=True):
+            print(f"{edge[0]} - {edge[1]} : {edge[2]}")
     
     def print_graph_positions(self):
         print("Nodes:")
-        for node_id, position in self.graph.nodes(data=True):
-            print(f"{node_id} : {position}")
+        self.print_node_positions()
 
         print("\nEdges:")
-        for edge in self.graph.edges(data=True):
-            print(f"{edge[0]} - {edge[1]} : {edge[2]}")
+        self.print_edge_positions()
+
+    def save_graph_into_gml(self, file_path):
+        nx.write_gml(self.graph, file_path)

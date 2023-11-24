@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
+import time
 
 def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100)):
     players = {}
@@ -37,3 +38,29 @@ def min_distance(point, points):
             key = iter_key
 
     return min_value, key
+
+def print_pattern():
+    print("#" * 100)  # Prints the '#' character 100 times
+
+class Timer:
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+
+    def start(self):
+        self.start_time = time.time()
+
+    def stop(self):
+        self.end_time = time.time()
+
+    def get_elapsed_time(self):
+        if self.start_time is None or self.end_time is None:
+            return None
+        return self.end_time - self.start_time
+
+    def print_elapsed_time(self):
+        elapsed_time = self.get_elapsed_time()
+        if elapsed_time is not None:
+            print(f"Elapsed time: {elapsed_time} seconds")
+        else:
+            print("Timer has not been started and stopped properly.")
