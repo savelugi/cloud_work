@@ -6,6 +6,9 @@ class Visualization:
         self.network_graph = network_graph
 
     def draw_graph(self, pos, servers, players, canvas_size, node_size=200, show_edge_labels=False):
+        # Close all existing Matplotlib figures
+        #plt.close('all')
+
         plt.figure(figsize=canvas_size)
         
         # Szerverek kirajzolása
