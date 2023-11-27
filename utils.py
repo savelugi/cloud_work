@@ -41,7 +41,12 @@ def min_distance(point, points):
     return min_value, key
 
 def print_pattern():
+    print("\n")
     print("#" * 100)  # Prints the '#' character 100 times
+    print("#" * 100)  # Prints the '#' character 100 times
+    print("#" * 100)  # Prints the '#' character 100 times
+    print("\n")
+
 
 class Timer:
     def __init__(self):

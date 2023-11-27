@@ -41,9 +41,7 @@ class Visualization:
                                node_color='yellow', node_size=2.5 * node_size)
         nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=[server for server in servers if server not in selected_servers],
                                node_color='blue', node_size=2.5 * node_size)
-        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=list(players.keys()), node_color='g', node_size=node_size)
-
-        # Draw edges for the entire graph
+        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=list(players.keys()), node_color='g', node_size=2.5*node_size)
 
         # Draw edges for the entire graph
         nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=self.network_graph.graph.edges(), width=1.0, alpha=0.5)
@@ -54,7 +52,7 @@ class Visualization:
             nx.draw_networkx_edge_labels(self.network_graph.graph, pos, edge_labels=edge_labels)
 
         # Draw paths for players connected to servers
-        for player, server, path in player_server_paths:
+        for _, _, path in player_server_paths:
             edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
             nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=edges, edge_color='red', width=2.0)
 
