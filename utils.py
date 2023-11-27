@@ -1,9 +1,10 @@
-import networkx as nx
-import matplotlib.pyplot as plt
 import random
 import time
 
-def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100)):
+def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=None):
+    if seed is not None:
+        random.seed(seed)
+
     players = {}
     x_start, x_stop = x_range
     y_start, y_stop = y_range
