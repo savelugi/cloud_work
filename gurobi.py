@@ -90,6 +90,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
+        return None, None, None
 
     return connected_players_info_model_1, selected_servers_model_1, player_server_paths_model_1
 
@@ -188,8 +189,29 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
             # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
+        return None, None, None
 
     return connected_players_info_model_2, selected_servers_model_2, player_server_paths_model_2
+
+def run_optimization(network, server_positions, players, nr_of_servers, max_connected_players, max_allowed_delay):
+    connected_players_info_sum, selected_servers_sum, _ = sum_delay_optimization(
+        network=network, 
+        server_positions=server_positions,
+        players=players, 
+        nr_of_servers=nr_of_servers, 
+        max_connected_players=max_connected_players,
+        max_allowed_delay=max_allowed_delay)
+    
+    connected_players_info_ipd, selected_servers_ipd, _ = interplayer_delay_optimization(
+        network=network, 
+        server_positions=server_positions,
+        players=players, 
+        nr_of_servers=nr_of_servers, 
+        max_connected_players=max_connected_players,
+        max_allowed_delay=max_allowed_delay)
+    
+    return connected_players_info_sum, selected_servers_sum, connected_players_info_ipd, selected_servers_ipd
+
 
 #################################################################################################
 #################################################################################################

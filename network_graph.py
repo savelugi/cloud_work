@@ -121,10 +121,13 @@ def calculate_delay_metrics(self, connected_players_info, selected_servers, meth
 
     # Calculate metrics
     delays_only = [delay for _, _, delay in server_to_player_delays]
-    average_player_to_server_delay = sum(delays_only) / len(delays_only)
-    average_player_to_player_delay = sum(player_to_player_delays) / len(player_to_player_delays)
-    min_player_to_server_delay = min(delays_only)
-    max_player_to_server_delay = max(delays_only)
+    average_player_to_server_delay = round(sum(delays_only) / len(delays_only))
+    min_player_to_server_delay = round(min(delays_only))
+    max_player_to_server_delay = round(max(delays_only))
+
+    average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays))
+    min_player_to_player_delay = round(min_value[2])
+    max_player_to_player_delay = round(max_value[2])
 
     # Print the metrics
     print(f"\nThe {method_type} method selected servers are: {selected_servers}")
@@ -135,3 +138,6 @@ def calculate_delay_metrics(self, connected_players_info, selected_servers, meth
     print(f"\nAverage interplayer delay: {average_player_to_player_delay}")
     print(f"Maximum interplayer delay: {max_value}")
     print(f"Minimum interplayer delay: {min_value}")
+
+    return [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
+        average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay]
