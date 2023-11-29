@@ -2,13 +2,16 @@ from utils import *
 from network_graph import *
 from visualization import *
 from gurobi import *
+from datetime import datetime
 
+topology = "usa"
 
 optimize = False
-plot = False
-topology = "germany"
+save = True
 
-timer = Timer()
+plot = True
+
+
 
 # Parameters
 param_combinations_usa = [
@@ -29,14 +32,15 @@ param_combinations_germany = [
 
 param_combinations_cost = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (64,                  4,                  4,                      20,                        5),
-    (64,                  4,                  6,                      20,                        5),
-    (64,                  4,                  8,                      20,                        5),
-    (64,                  4,                  10,                     20,                        5),
-    (64,                  4,                  12,                     20,                        5)]
+    (64,                  4,                  4,                      20,                        23),
+    (64,                  4,                  6,                      20,                        23),
+    (64,                  4,                  8,                      20,                        23),
+    (64,                  4,                  10,                     20,                        23),
+    (64,                  4,                  12,                     20,                        23)]
 
 #topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
 topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
+save_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
 #file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/10player_3server_60db_2000ms.gml"
 
 # Player generation parameters
@@ -68,6 +72,7 @@ else:
 # Getting server positions
 server_positions = network.get_server_positions()
 
+timer = Timer()
 if optimize:
     df_results = pd.DataFrame()
     if topology == "usa":
@@ -127,10 +132,15 @@ if optimize:
         if selected_servers_model_sum is not None:
             delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
             delay_metrics_model_sum.append(len(selected_servers_model_sum))
-            delay_metrics_model_sum.append(timer.get_elapsed_time())
+            delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
         else:
             delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
 
+        if save:
+            # save_name = save_dir+topology+"_SUM_selected_servers_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
+            # save_data_with_incremental_name(selected_servers_model_sum, save_name)
+            save_name = save_dir+topology+"_SUM_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
+            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, save_name)
 
         #                                                    _____ _____  _____   
         ################################################### |_   _|  __ \|  __ \   #######################################################
@@ -160,6 +170,10 @@ if optimize:
         else:
             delay_metrics_model_ipd = [0, 0, 0, 0, 0, 0, 0, 0]
 
+        if save:
+            save_name = save_dir+topology+"_IPD_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
+            network.save_graph(player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, save_name)
+
         df_row = pd.DataFrame([list(params) + delay_metrics_model_sum + delay_metrics_model_ipd], columns=[
             'num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay',
             'average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
@@ -179,7 +193,9 @@ if optimize:
     print(df_results)
 
     # Save the DataFrame to a CSV file
-    df_results.to_csv('optimization_results.csv', index=False)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
+    csv = save_dir+topology+"_IPD_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)+"_"+str(timestamp)+".csv"
+    df_results.to_csv(csv, index=False)
 
 #                                                 _____  _____  _____ _   _ _______ 
 ###############################################  |  __ \|  __ \|_   _| \ | |__   __| ################################################
@@ -194,8 +210,8 @@ if plot:
 
     # Assume df_results is your DataFrame containing the mentioned columns
     # Load data from CSV into df_results DataFrame
-    csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/optimization_results.csv"
-    df_results = pd.read_csv(csv_file_path)
+    csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
+    df_results = pd.read_csv(csv_file_path+"usa_IPD_64_4_12_20_20231129192546"+".csv")
 
     # Plotting average player-to-server delay for both methods
     plt.figure(figsize=(10, 6))
@@ -239,86 +255,95 @@ if plot:
     plt.show()
 
 
-print_plot_nr = None
-if print_plot_nr is not None:
-    num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = param_combinations[print_plot_nr-1]
-    # Adding server nodes
-    network = NetworkGraph()
-    network.load_topology(topology_dir+"26_usa_scaled.gml")
-    # Getting server positions
-    server_positions = network.get_server_positions()
+# print_plot_nr = None
+# if print_plot_nr is not None:
+#     #num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = param_combinations_usa[print_plot_nr-1]
+#     # Adding server nodes
+#     network = NetworkGraph()
+#     network.load_topology(topology_dir+"26_usa_scaled.gml")
+#     # Getting server positions
+#     server_positions = network.get_server_positions()
 
-    print(network.get_max_server_to_server_delay(server_positions)[0])
-    print(network.get_max_server_to_server_delay(server_positions)[1])
+#     print(network.get_max_server_to_server_delay(server_positions)[0])
+#     print(network.get_max_server_to_server_delay(server_positions)[1])
 
-    players = generate_players(num_players, long_range, lat_range, seed_value)
-    network.add_nodes_from_keys(players)
+#     players = generate_players(num_players, long_range, lat_range, seed_value)
+#     network.add_nodes_from_keys(players)
 
-    for player in players:
-        network.connect_player_to_server(players, player, server_positions)
+#     for player in players:
+#         network.connect_player_to_server(players, player, server_positions)
 
-    connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
-        network=network, 
-        server_positions=server_positions,
-        players=players, 
-        nr_of_servers=nr_of_servers,
-        min_players_connected=min_players_connected, 
-        max_connected_players=max_connected_players,
-        max_allowed_delay=max_allowed_delay
-    )
+#     connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
+#         network=network, 
+#         server_positions=server_positions,
+#         players=players, 
+#         nr_of_servers=nr_of_servers,
+#         min_players_connected=min_players_connected, 
+#         max_connected_players=max_connected_players,
+#         max_allowed_delay=max_allowed_delay
+#     )
+#     calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Sum delay method')
+#     connected_players_info_model_ipd, selected_servers_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
+#         network=network,
+#         server_positions=server_positions,
+#         players=players,
+#         nr_of_servers=nr_of_servers,
+#         min_players_connected=min_players_connected,
+#         max_connected_players=max_connected_players,
+#         max_allowed_delay=max_allowed_delay
+#     )
+#     calculate_delay_metrics(network, connected_players_info_model_ipd, selected_servers_model_ipd, method_type='Interplayer delay method')
+#     # Preparing positions
+#     pos = {**server_positions, **players}
 
-    connected_players_info_model_ipd, selected_servers_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
-        network=network,
-        server_positions=server_positions,
-        players=players,
-        nr_of_servers=nr_of_servers,
-        min_players_connected=min_players_connected,
-        max_connected_players=max_connected_players,
-        max_allowed_delay=max_allowed_delay
-    )
-    # Preparing positions
-    pos = {**server_positions, **players}
+# Drawing network decisions
+# visualization = Visualization(network)
 
-    # Drawing network decisions
-    visualization = Visualization(network)
+# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
 
-    #visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
+# visualization.draw_paths(pos, player_server_paths_model_sum, server_positions, selected_servers_model_sum, players,
+#                         canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='SUM')
 
-    visualization.draw_paths(pos, player_server_paths_model_sum, server_positions, selected_servers_model_sum, players,
-                            canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='SUM')
+# visualization.draw_paths(pos, player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, players,
+#                             canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='IPD')
 
-    visualization.draw_paths(pos, player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, players,
-                              canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='IPD')
-
-    visualization.display_plots()
+# visualization.display_plots()
 
 ####
-network = NetworkGraph()
+# network = NetworkGraph()
 
-network.load_topology(topology_dir+"37_cost_scaled.gml")
+# network.load_topology(topology_dir+"37_cost_scaled.gml")
 
-# Player generation parameters
-lat_range = (35, 62) # from graph
-long_range = (-10,28) # from graph
-seed_value = 42
-num_players = 100
+# # Player generation parameters
+# lat_range = (35, 62) # from graph
+# long_range = (-10,28) # from graph
+# seed_value = 42
+# num_players = 100
 
-# Getting server positions
-server_positions = network.get_server_positions()
+# # Getting server positions
+# server_positions = network.get_server_positions()
 
-print(network.get_max_server_to_server_delay(server_positions)[0])
-print(network.get_max_server_to_server_delay(server_positions)[1])
+# print(network.get_max_server_to_server_delay(server_positions)[0])
+# print(network.get_max_server_to_server_delay(server_positions)[1])
 
-players = generate_players(num_players, long_range, lat_range, seed_value)
-network.add_nodes_from_keys(players)
+# players = generate_players(num_players, long_range, lat_range, seed_value)
+# network.add_nodes_from_keys(players)
 
-for player in players:
-    network.connect_player_to_server(players, player, server_positions)
+# for player in players:
+#     network.connect_player_to_server(players, player, server_positions)
 
-# Preparing positions
-pos = {**server_positions, **players}
+# # Preparing positions
+# pos = {**server_positions, **players}
        
-# Drawing network decisions
-visualization = Visualization(network)
-visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
-visualization.display_plots()
+# # Drawing network decisions
+# visualization = Visualization(network)
+# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
+# visualization.display_plots()
+
+file_path = save_dir+"usa_SUM_64_4_12_20"+".gml"
+draw_graph_from_gml(file_path,1,"Sum method", show_edge_labels=True)
+plt.tight_layout()
+file_path = save_dir+"usa_IPD_64_4_12_20"+".gml"
+draw_graph_from_gml(file_path,2,"IPD method", show_edge_labels=True)
+plt.tight_layout()
+plt.show()

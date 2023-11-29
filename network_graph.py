@@ -23,7 +23,7 @@ class NetworkGraph:
     def add_nodes_from_keys(self, nodes):
         for node_name, coordinates in nodes.items():
             x, y = coordinates
-            self.graph.add_node(node_name, Latitude=x, Longitude=y)
+            self.graph.add_node(node_name, Latitude=y, Longitude=x)
     
     def connect_player_to_server(self, players, player_position, server_positions):
         distance, key = min_distance(players[player_position], server_positions)
@@ -99,6 +99,26 @@ class NetworkGraph:
                         max_delay = delay
                         between = (server1, server2)
         return [max_delay, between]
+    
+    def save_graph(self, player_server_paths, servers, selected_servers, save_name):
+        # Add node colors and edge colors as attributes
+        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in servers else 'g' for node in self.graph.nodes()}
+        
+        # Initialize edge colors
+        edge_colors = {edge: 'black' for edge in self.graph.edges()}
+
+        # Set edge colors to red for edges in player+server_paths
+        for _, _, path in player_server_paths:
+            edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
+            for edge in edges:
+                edge_colors[edge] = 'red'
+
+        # Set node and edge attributes for colors
+        nx.set_node_attributes(self.graph, node_colors, 'color')
+        nx.set_edge_attributes(self.graph, edge_colors, 'color')
+
+        # Save the graph to a GML file
+        nx.write_gml(self.graph, save_name+".gml")
 
     # Function to calculate interplayer delay metrics
 def calculate_delay_metrics(self, connected_players_info, selected_servers, method_type):
@@ -118,10 +138,7 @@ def calculate_delay_metrics(self, connected_players_info, selected_servers, meth
             player_1, server_1, delay_1 = server_to_player_delays[i]
             player_2, server_2, delay_2 = server_to_player_delays[j]
             if player_1 != player_2:
-                if server_1 != server_2:
-                    ser_to_serv_delay = self.get_shortest_path_delay(server_1, server_2)
-                    inter_player_delay = delay_1 + ser_to_serv_delay + delay_2
-                else:
+                if server_1 == server_2:
                     inter_player_delay = delay_1 + delay_2
 
                 player_to_player_delays.append(inter_player_delay)
