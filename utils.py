@@ -1,6 +1,7 @@
 import random
 import time
 import pandas as pd
+import math
 
 def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=None):
     if seed is not None:
@@ -29,12 +30,17 @@ def generate_servers():
 def distance(pos1:tuple, pos2:tuple):
     return abs(float(pos1[0]) - float(pos2[0])) + abs(float(pos1[1]) - float(pos2[1]))
 
+def euclidean_distance(pos1: tuple, pos2: tuple) -> float:
+    x1, y1 = map(float, pos1)
+    x2, y2 = map(float, pos2)
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
 def min_distance(point, points):
     min_value = float('inf')
     key = None
     
     for iter_key, iter_point in points.items():
-        cur_dist = distance(point, iter_point)
+        cur_dist = euclidean_distance(point, iter_point)
         if cur_dist < min_value:
             min_value = cur_dist
             key = iter_key

@@ -1,0 +1,6 @@
+num_players,nr_of_servers,min_players_connected,max_connected_players,max_allowed_delay,average_player_to_server_delay_sum,min_player_to_server_delay_sum,max_player_to_server_delay_sum,average_player_to_player_delay_sum,min_player_to_player_delay_sum,max_player_to_player_delay_sum,nr_of_selected_servers_sum,sim_time_sum,average_player_to_server_delay_ipd,min_player_to_server_delay_ipd,max_player_to_server_delay_ipd,average_player_to_player_delay_ipd,min_player_to_player_delay_ipd,max_player_to_player_delay_ipd,nr_of_selected_servers_ipd,sim_time_ipd
+100,14,4,10,30,5,0,15,31,1,72,14,6.172811269760132,5,1,14,31,2,72,14,59.174771547317505
+100,13,4,10,30,5,0,14,31,1,72,13,6.141178131103516,5,1,14,32,2,72,13,338.00541710853577
+100,12,4,10,30,5,0,14,32,2,72,12,4.982810020446777,6,1,16,32,2,66,12,915.8350870609283
+100,11,4,10,30,5,0,15,32,1,72,11,4.751310586929321,6,1,16,32,2,66,11,1674.631766796112
+100,10,4,10,30,6,1,16,33,2,67,10,3.788794755935669,7,0,15,36,2,81,10,1430.6086211204529

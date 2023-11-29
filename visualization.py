@@ -2,6 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
+import seaborn as sns
 
 class Visualization:
     def __init__(self, network_graph):
@@ -23,7 +24,7 @@ class Visualization:
 
         # Él súlyok (távolságok) hozzáadása
         if show_edge_labels:
-            edge_labels = {(player, server): round(self.network_graph.graph[player][server]["length"]) for player, server in self.network_graph.graph.edges}
+            edge_labels = {(player, server): round(self.network_graph.graph[player][server]["length"],2) for player, server in self.network_graph.graph.edges}
             nx.draw_networkx_edge_labels(self.network_graph.graph, pos, edge_labels=edge_labels)
 
         # Címkék hozzáadása a csomópontokhoz
@@ -95,3 +96,19 @@ class Visualization:
 
     def display_plots(self):
         plt.show()
+
+def draw_compare_plot(df, x:str, x_label, y_sum:str, y_ipd:str, y_label, title:str) :
+    sum_data = df[['nr_of_servers', 'min_players_connected', 'max_allowed_delay', 'max_player_to_server_delay_sum', 'min_player_to_server_delay_sum',
+                   'average_player_to_server_delay_sum', 'max_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 
+                   'average_player_to_player_delay_sum','nr_of_selected_servers_sum', 'sim_time_sum']]
+    
+    ipd_data = df[['nr_of_servers', 'min_players_connected','max_allowed_delay', 'max_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd',
+                   'average_player_to_server_delay_ipd', 'max_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd',
+                   'average_player_to_player_delay_ipd', 'nr_of_selected_servers_ipd', 'sim_time_ipd']]
+
+    sns.lineplot(data=sum_data, x=x, y=y_sum, label='Sum Method')
+    sns.lineplot(data=ipd_data, x=x, y=y_ipd, label='Ipd Method')
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()

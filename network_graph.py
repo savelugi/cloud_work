@@ -88,6 +88,18 @@ class NetworkGraph:
     def save_graph_into_gml(self, file_path):
         nx.write_gml(self.graph, file_path)
 
+    def get_max_server_to_server_delay(self, servers):
+        max_delay = 0
+        between = ()
+        for server1 in servers:
+            for server2 in servers:
+                if server1 != server2:
+                    delay = self.get_shortest_path_delay(server1, server2)
+                    if delay > max_delay:
+                        max_delay = delay
+                        between = (server1, server2)
+        return [max_delay, between]
+
     # Function to calculate interplayer delay metrics
 def calculate_delay_metrics(self, connected_players_info, selected_servers, method_type):
     server_to_player_delays = []
@@ -121,13 +133,13 @@ def calculate_delay_metrics(self, connected_players_info, selected_servers, meth
 
     # Calculate metrics
     delays_only = [delay for _, _, delay in server_to_player_delays]
-    average_player_to_server_delay = round(sum(delays_only) / len(delays_only))
-    min_player_to_server_delay = round(min(delays_only))
-    max_player_to_server_delay = round(max(delays_only))
+    average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
+    min_player_to_server_delay = round(min(delays_only),2)
+    max_player_to_server_delay = round(max(delays_only),2)
 
-    average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays))
-    min_player_to_player_delay = round(min_value[2])
-    max_player_to_player_delay = round(max_value[2])
+    average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays),2)
+    min_player_to_player_delay = round(min_value[2],2)
+    max_player_to_player_delay = round(max_value[2],2)
 
     # Print the metrics
     print(f"\nThe {method_type} method selected servers are: {selected_servers}")

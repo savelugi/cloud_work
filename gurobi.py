@@ -3,7 +3,7 @@ from gurobipy import GRB
 from network_graph import *
 
 
-def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, max_connected_players, max_allowed_delay):
+def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
     sum_model = grb.Model()
     # Set Gurobi parameter to suppress output
     sum_model.setParam('OutputFlag', 0)
@@ -29,6 +29,11 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             grb.quicksum(connected_players[(player, server)] for player in players) <= max_connected_players * server_selected[server],
             name=f"limit_connected_players_to_server_{server}"
         )
+        # Ensure a minimum number of players connected to selected servers
+        sum_model.addConstr(
+            grb.quicksum(connected_players[(player, server)] for player in players) >= min_players_connected * server_selected[server],
+            name=f"min_connected_players_to_server_{server}"
+        )
 
     # Constraints to ensure players are connected only to selected servers
     for player in players:
@@ -42,7 +47,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
         for player in players:
             server_player_delay = network.get_shortest_path_delay(player, server)
             # Add constraint to limit maximum delay between server and player
-            sum_model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)])
+            sum_model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)] * server_selected[server])
 
     # Add a constraint to ensure the maximum delay is not exceeded
     sum_model.addConstr(max_server_player_delay <= max_allowed_delay)
@@ -50,7 +55,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
     # Objective function: minimize total delay
     sum_model.setObjective(
         grb.quicksum(
-            network.get_shortest_path_delay(player, server) * server_selected[server]
+            network.get_shortest_path_delay(player, server) * connected_players[(player, server)] * server_selected[server]
             for player in players
             for server in server_positions
         ),
@@ -94,11 +99,11 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
 
     return connected_players_info_model_1, selected_servers_model_1, player_server_paths_model_1
 
-def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, max_connected_players, max_allowed_delay):
+def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
     # Create a new Gurobi model
     model = grb.Model('MinimizeMaxInterplayerDelay')
     # Set Gurobi parameter to suppress output
-    model.setParam('OutputFlag', 0)
+    #model.setParam('OutputFlag', 0)
 
     # Decision variables: binary variable indicating if a server is chosen
     server_selected = {}
@@ -110,9 +115,17 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
     # Maximum server-player delay
     max_server_player_delay = model.addVar(name='max_server_player_delay')
 
-    # Constraint: select only #nr_of_servers 
-    model.addConstr(grb.quicksum(server_selected[server] for server in server_positions) <= nr_of_servers)
-
+    # Define a new set of decision variables representing connected players to servers
+    connected_players = {(player, server): model.addVar(vtype=GRB.BINARY, name=f"player_{player}_connected_to_{server}")
+                        for player in players for server in server_positions}
+    
+    # Constraint: Limit the maximum delay between a server and a player
+    for server in server_positions:
+        for player in players:
+            server_player_delay = network.get_shortest_path_delay(player, server)
+            # Add constraint to limit maximum delay between server and player
+            model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)] * server_selected[server])
+    
     # Constraint: Calculate maximum interplayer delay
     for server in server_positions:
         for player1 in players:
@@ -123,17 +136,23 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
                         network.get_shortest_path_delay(player2, server)
                     )
                     # Add constraint based on selected servers
-                    model.addConstr(max_interplayer_delay >= interplayer_delay * server_selected[server])
+                    model.addConstr(
+                        max_interplayer_delay >= interplayer_delay * connected_players[(player1, server)] * connected_players[(player2, server)]
+                    )
 
-    # Define a new set of decision variables representing connected players to servers
-    connected_players = {(player, server): model.addVar(vtype=GRB.BINARY, name=f"player_{player}_connected_to_{server}")
-                        for player in players for server in server_positions}
+    # Constraint: select only #nr_of_servers 
+    model.addConstr(grb.quicksum(server_selected[server] for server in server_positions) <= nr_of_servers)
 
     # Constraint: Limit the number of connected players to each server
     for server in server_positions:
         model.addConstr(
             grb.quicksum(connected_players[(player, server)] for player in players) <= max_connected_players * server_selected[server],
             name=f"limit_connected_players_to_server_{server}"
+        )
+        # Ensure a minimum number of players connected to selected servers
+        model.addConstr(
+            grb.quicksum(connected_players[(player, server)] for player in players) >= min_players_connected * server_selected[server],
+            name=f"min_connected_players_to_server_{server}"
         )
 
     # Constraints to ensure players are connected only to selected servers
@@ -143,12 +162,7 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
             name=f"player_{player}_connected_to_one_server"
         )
 
-    # Constraint: Limit the maximum delay between a server and a player
-    for server in server_positions:
-        for player in players:
-            server_player_delay = network.get_shortest_path_delay(player, server)
-            # Add constraint to limit maximum delay between server and player
-            model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)])
+
 
     # Add a constraint to ensure the maximum delay is not exceeded
     model.addConstr(max_server_player_delay <= max_allowed_delay)
