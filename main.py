@@ -7,33 +7,33 @@ from datetime import datetime
 topology = "cost"
 
 optimize = False
-save = True
-plot = True
+save = False
+plot = False
 
 # Parameters
 param_combinations_usa = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (100,                  7,                  4,                      32,                        27),
-    (100,                  7,                  6,                      32,                        27),
-    (100,                  7,                  8,                      32,                        27),
-    (100,                  7,                  10,                     32,                        27),
-    (100,                  7,                  12,                     32,                        27)]
+    (100,                  9,                  6,                      20,                        27),
+    (100,                  8,                  6,                      20,                        27),
+    (100,                  7,                  6,                      20,                        27),
+    (100,                  6,                  6,                      20,                        27),
+    (100,                  5,                  6,                      20,                        27)]
 
 param_combinations_germany = [
-    #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (64,                  4,                  4,                      20,                        5),
-    (64,                  4,                  6,                      20,                        5),
-    (64,                  4,                  8,                      20,                        5),
-    (64,                  4,                  10,                     20,                        5),
-    (64,                  4,                  12,                     20,                        5)]
-
-param_combinations_cost = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
     (100,                  10,                  4,                      32,                        23),
     (100,                  10,                  6,                      32,                        23),
     (100,                  10,                  8,                      32,                        23),
     (100,                  10,                  10,                     32,                        23),
     (100,                  10,                  12,                     32,                        23)]
+
+param_combinations_cost = [
+    #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
+    (100,                  9,                  6,                      20,                        5),
+    (100,                  8,                  6,                      20,                        5),
+    (100,                  7,                  6,                      20,                        5),
+    (100,                  6,                  6,                      20,                        5),
+    (100,                  5,                  6,                      20,                        5)]
 
 #topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
 topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
@@ -111,40 +111,40 @@ if optimize:
         ######################################################  \___ \| |  | | |\/| | ########################################################
         ######################################################  ____) | |__| | |  | | ########################################################
         ###################################################### |_____/ \____/|_|  |_| ########################################################
-        print_pattern()
-        timer.start()
+        # print_pattern()
+        # timer.start()
 
-        connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
-            network=network, 
-            server_positions=server_positions,
-            players=players, 
-            nr_of_servers=nr_of_servers,
-            min_players_connected=min_players_connected, 
-            max_connected_players=max_connected_players,
-            max_allowed_delay=max_allowed_delay)
+        # connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
+        #     network=network, 
+        #     server_positions=server_positions,
+        #     players=players, 
+        #     nr_of_servers=nr_of_servers,
+        #     min_players_connected=min_players_connected, 
+        #     max_connected_players=max_connected_players,
+        #     max_allowed_delay=max_allowed_delay)
 
-        timer.stop()   
+        # timer.stop()   
 
-        # Calculate metrics for the first Gurobi model
-        if selected_servers_model_sum is not None:
-            delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
-            delay_metrics_model_sum.append(len(selected_servers_model_sum))
-            delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
-        else:
-            delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
+        # # Calculate metrics for the first Gurobi model
+        # if selected_servers_model_sum is not None:
+        #     delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
+        #     delay_metrics_model_sum.append(len(selected_servers_model_sum))
+        #     delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
+        # else:
+        #     delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
 
 
-        if save:
-            dir_name = topology + "_SUM_" + str(num_players)
-            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+        # if save:
+        #     dir_name = topology + "_SUM_" + str(num_players)
+        #     save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+        #     folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
             
-            # Check if the directory exists, if not, create it
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
+        #     # Check if the directory exists, if not, create it
+        #     if not os.path.exists(folder_path):
+        #         os.makedirs(folder_path)
             
-            full_save_path = os.path.join(folder_path, save_name)
-            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
+        #     full_save_path = os.path.join(folder_path, save_name)
+        #     network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
 
         #                                                    _____ _____  _____   
         ################################################### |_   _|  __ \|  __ \   #######################################################
@@ -187,30 +187,31 @@ if optimize:
             
             full_save_path = os.path.join(folder_path, save_name)
             network.save_graph(player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, full_save_path)
+        if save:
+            df_row = pd.DataFrame([list(params) + delay_metrics_model_sum + delay_metrics_model_ipd], columns=[
+                'num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay',
+                'average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
+                'average_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 'max_player_to_player_delay_sum', 
+                'nr_of_selected_servers_sum', 'sim_time_sum',
+                'average_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd', 'max_player_to_server_delay_ipd',
+                'average_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd', 'max_player_to_player_delay_ipd',
+                'nr_of_selected_servers_ipd', 'sim_time_ipd'
+            ])
 
-        df_row = pd.DataFrame([list(params) + delay_metrics_model_sum + delay_metrics_model_ipd], columns=[
-            'num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay',
-            'average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
-            'average_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 'max_player_to_player_delay_sum', 
-            'nr_of_selected_servers_sum', 'sim_time_sum',
-            'average_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd', 'max_player_to_server_delay_ipd',
-            'average_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd', 'max_player_to_player_delay_ipd',
-            'nr_of_selected_servers_ipd', 'sim_time_ipd'
-        ])
+            df_results = pd.concat([df_results, df_row])
 
-        df_results = pd.concat([df_results, df_row])
+    if save:
+        # Assuming df_results is your DataFrame
+        pd.set_option('display.max_rows', None)  # Show all rows
+        pd.set_option('display.max_columns', None)  # Show all columns
+        # Display the DataFrame
+        print(df_results)
 
-    # Assuming df_results is your DataFrame
-    pd.set_option('display.max_rows', None)  # Show all rows
-    pd.set_option('display.max_columns', None)  # Show all columns
-    # Display the DataFrame
-    print(df_results)
-
-    # Save the DataFrame to a CSV file
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
-    csv = save_dir+topology+"_IPD_"+str(num_players)+str(timestamp)+".csv"
-    latest_csv_dir = csv
-    df_results.to_csv(csv, index=False)
+        # Save the DataFrame to a CSV file
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
+        csv = save_dir+topology+"_"+str(num_players)+"_"+str(timestamp)+".csv"
+        latest_csv_dir = csv
+        df_results.to_csv(csv, index=False)
 
 #                                                 _____  _____  _____ _   _ _______ 
 ###############################################  |  __ \|  __ \|_   _| \ | |__   __| ################################################
@@ -229,46 +230,49 @@ if plot:
         df_results = pd.read_csv(latest_csv_dir)
     else:
         csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
-        df_results = pd.read_csv(csv_file_path + "usa_IPD_100_7_12_32_20231129214020.csv")
-
+        csv_file_name = "cost100_20231201134812"
+        try:
+            df_results = pd.read_csv(csv_file_path + csv_file_name+".csv")
+        except FileNotFoundError:
+            print("Check the filename in the print function!")
 
     # Plotting average player-to-server delay for both methods
     plt.figure(figsize=(10, 6))
 
     plt.subplot(2, 1, 1)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='average_player_to_server_delay_sum', y_ipd='average_player_to_server_delay_ipd',
-                      y_label='Avg. Player-to-Server Delay', title='Average Player-to-Server Delay Comparison')
+                      y_label='Avg. Player-to-Server Delay [ms]', title='Average Player-to-Server Delay Comparison')
 
     # Plotting average player-to-player delay for both methods
     plt.subplot(2, 1, 2)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='average_player_to_player_delay_sum', y_ipd='average_player_to_player_delay_ipd',
-                      y_label='Avg. Player-to-Player Delay', title='Average Player-to-Player Delay Comparison')
+                      y_label='Avg. Player-to-Player Delay [ms]', title='Average Player-to-Player Delay Comparison')
     plt.tight_layout()
     
     plt.figure(figsize=(10, 6))
     plt.subplot(2, 1, 1)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='max_player_to_server_delay_sum', y_ipd='max_player_to_server_delay_ipd',
-                      y_label='Max Player-to-Server Delay', title='Maximum Player-to-Server Delay Comparison')
+                      y_label='Max Player-to-Server Delay [ms]', title='Maximum Player-to-Server Delay Comparison')
     
     plt.subplot(2, 1, 2)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='max_player_to_player_delay_sum', y_ipd='max_player_to_player_delay_ipd',
-                      y_label='Max Player-to-Player Delay', title='Maximum Player-to-Player Delay Comparison')
+                      y_label='Max Player-to-Player Delay [ms]', title='Maximum Player-to-Player Delay Comparison')
     plt.tight_layout()
     
     plt.figure(figsize=(10, 6))
     plt.subplot(2,1,1)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='min_player_to_server_delay_sum', y_ipd='min_player_to_server_delay_ipd',
-                      y_label='Max Player-to-Server Delay', title='Minimum Player-to-Server Delay Comparison')
+                      y_label='Max Player-to-Server Delay [ms]', title='Minimum Player-to-Server Delay Comparison')
 
     plt.subplot(2,1,2)
-    draw_compare_plot(df_results, x='min_players_connected', x_label='Nr. of min players connected', 
+    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_sum='min_player_to_player_delay_sum', y_ipd='min_player_to_player_delay_ipd',
-                      y_label='Max Player-to-Player Delay', title='Minimum Player-to-Player Delay Comparison')
+                      y_label='Max Player-to-Player Delay [ms]', title='Minimum Player-to-Player Delay Comparison')
     plt.tight_layout()
 
     plt.show()
@@ -359,10 +363,41 @@ if plot:
 # visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
 # visualization.display_plots()
 
-file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_10_4_32"+".gml"
-draw_graph_from_gml(file_path,1,"Sum method", show_edge_labels=False)
-plt.tight_layout()
-file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_10_4_32"+".gml"
-draw_graph_from_gml(file_path,2,"IPD method", show_edge_labels=False)
-#plt.tight_layout()
-plt.show()
+if True:
+    plt.figure(figsize=(10, 6))
+    file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_5_6_20"+".gml"
+    draw_graph_from_gml(file_path,1,"(a) Sum method, 5 servers", show_edge_labels=False)
+
+    file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_5_6_20"+".gml"
+    draw_graph_from_gml(file_path,2,"(b) IPD method, 5 servers", show_edge_labels=False)
+    #plt.subplots_adjust(top=0.85, bottom=0.1)
+
+    # plt.figure(figsize=(10, 6))
+    # file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_6_6_20"+".gml"
+    # draw_graph_from_gml(file_path,1,"Sum method6", show_edge_labels=False)
+
+    # file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_6_6_20"+".gml"
+    # draw_graph_from_gml(file_path,2,"IPD method6", show_edge_labels=False)
+
+    # plt.figure(figsize=(10, 6))
+    # file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_7_6_20"+".gml"
+    # draw_graph_from_gml(file_path,1,"Sum method7", show_edge_labels=False)
+
+    # file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_7_6_20"+".gml"
+    # draw_graph_from_gml(file_path,2,"IPD method7", show_edge_labels=False)
+
+    # plt.figure(figsize=(10, 6))
+    # file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_8_6_20"+".gml"
+    # draw_graph_from_gml(file_path,1,"Sum method8", show_edge_labels=False)
+
+    # file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_8_6_20"+".gml"
+    # draw_graph_from_gml(file_path,2,"IPD method8", show_edge_labels=False)
+
+    # plt.figure(figsize=(10, 6))
+    # file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_9_6_20"+".gml"
+    # draw_graph_from_gml(file_path,1,"Sum method9", show_edge_labels=False)
+
+    # file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_9_6_20"+".gml"
+    # draw_graph_from_gml(file_path,2,"IPD method9", show_edge_labels=False)
+
+    plt.show()

@@ -112,6 +112,7 @@ def draw_graph_from_gml(file_path, nr, title, show_edge_labels):
 
     # Plot the graph
     plt.subplot(1,2,nr)
+    # Adjust layout to move the title under the plots
     plt.tight_layout()
 
 
@@ -121,7 +122,7 @@ def draw_graph_from_gml(file_path, nr, title, show_edge_labels):
             edge_labels = {(player, server): round(graph[player][server]["length"],1) for player, server in graph.edges()}
             nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
 
-    plt.title(title)
+    plt.title(title, y=-0.01, fontsize="19")
 
 def draw_compare_plot(df, x:str, x_label, y_sum:str, y_ipd:str, y_label, title:str) :
     sum_data = df[['nr_of_servers', 'min_players_connected', 'max_allowed_delay', 'max_player_to_server_delay_sum', 'min_player_to_server_delay_sum',

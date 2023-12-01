@@ -26,10 +26,10 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             grb.quicksum(connected_players[(player, server)] for server in server_positions) == 1,
             name=f"player_{player}_connected_to_one_server"
         )
-    # 3. Constraints to ensure players are connected only to selected servers
         for server in server_positions:
             sum_model.addConstr(connected_players[(player, server)] <= server_selected[server])
 
+    # 3. Constraint: Limit the number of connected players to each server
     for server in server_positions:
         sum_model.addConstr(
             grb.quicksum(connected_players[(player, server)] for player in players) <= max_connected_players,
@@ -55,7 +55,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
     # Objective function: minimize total delay
     sum_model.setObjective(
         grb.quicksum(
-            network.get_shortest_path_delay(player, server) * server_selected[server]
+            network.get_shortest_path_delay(player, server) * connected_players[(player, server)]
             for player in players
             for server in server_positions
         ),
