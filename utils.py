@@ -2,7 +2,7 @@ import random
 import time
 import pandas as pd
 import math
-import json
+import os
 
 def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=None):
     if seed is not None:
@@ -27,9 +27,6 @@ def generate_servers():
         "S3": (100, 100)
     }
     return servers
-
-def distance(pos1:tuple, pos2:tuple):
-    return abs(float(pos1[0]) - float(pos2[0])) + abs(float(pos1[1]) - float(pos2[1]))
 
 def euclidean_distance(pos1: tuple, pos2: tuple) -> float:
     x1, y1 = map(float, pos1)

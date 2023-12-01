@@ -6,7 +6,7 @@ from network_graph import *
 def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
     sum_model = grb.Model()
     # Set Gurobi parameter to suppress output
-    sum_model.setParam('OutputFlag', 0)
+    #sum_model.setParam('OutputFlag', 0)
 
     # Decision variables: binary variable indicating if a server is chosen
     server_selected = {}
@@ -26,10 +26,10 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             grb.quicksum(connected_players[(player, server)] for server in server_positions) == 1,
             name=f"player_{player}_connected_to_one_server"
         )
+    # 3. Constraints to ensure players are connected only to selected servers
         for server in server_positions:
             sum_model.addConstr(connected_players[(player, server)] <= server_selected[server])
 
-    # 3. Constraint: Limit the number of connected players to each server
     for server in server_positions:
         sum_model.addConstr(
             grb.quicksum(connected_players[(player, server)] for player in players) <= max_connected_players,

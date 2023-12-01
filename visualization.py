@@ -85,7 +85,7 @@ class Visualization:
             edges = [(path[j], path[j + 1]) for j in range(len(path) - 1)]
             
             # Use the same color for all edges in the path
-            nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=edges, edge_color=unique_color, width=2.0)
+            nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=edges, edge_color=unique_color, width=4.0)
 
             plt.title("Paths from Players to Servers (Frame: {})".format(frame + 1))
 

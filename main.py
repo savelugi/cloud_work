@@ -4,23 +4,20 @@ from visualization import *
 from gurobi import *
 from datetime import datetime
 
-topology = "usa"
+topology = "cost"
 
 optimize = False
 save = True
-
 plot = True
-
-
 
 # Parameters
 param_combinations_usa = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (64,                  4,                  4,                      20,                        27),
-    (64,                  4,                  6,                      20,                        27),
-    (64,                  4,                  8,                      20,                        27),
-    (64,                  4,                  10,                     20,                        27),
-    (64,                  4,                  12,                     20,                        27)]
+    (100,                  7,                  4,                      32,                        27),
+    (100,                  7,                  6,                      32,                        27),
+    (100,                  7,                  8,                      32,                        27),
+    (100,                  7,                  10,                     32,                        27),
+    (100,                  7,                  12,                     32,                        27)]
 
 param_combinations_germany = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
@@ -32,11 +29,11 @@ param_combinations_germany = [
 
 param_combinations_cost = [
     #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (64,                  4,                  4,                      20,                        23),
-    (64,                  4,                  6,                      20,                        23),
-    (64,                  4,                  8,                      20,                        23),
-    (64,                  4,                  10,                     20,                        23),
-    (64,                  4,                  12,                     20,                        23)]
+    (100,                  10,                  4,                      32,                        23),
+    (100,                  10,                  6,                      32,                        23),
+    (100,                  10,                  8,                      32,                        23),
+    (100,                  10,                  10,                     32,                        23),
+    (100,                  10,                  12,                     32,                        23)]
 
 #topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
 topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
@@ -136,11 +133,18 @@ if optimize:
         else:
             delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
 
+
         if save:
-            # save_name = save_dir+topology+"_SUM_selected_servers_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
-            # save_data_with_incremental_name(selected_servers_model_sum, save_name)
-            save_name = save_dir+topology+"_SUM_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
-            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, save_name)
+            dir_name = topology + "_SUM_" + str(num_players)
+            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+            
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            
+            full_save_path = os.path.join(folder_path, save_name)
+            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
 
         #                                                    _____ _____  _____   
         ################################################### |_   _|  __ \|  __ \   #######################################################
@@ -171,8 +175,18 @@ if optimize:
             delay_metrics_model_ipd = [0, 0, 0, 0, 0, 0, 0, 0]
 
         if save:
-            save_name = save_dir+topology+"_IPD_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)
-            network.save_graph(player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, save_name)
+            dir_name = topology + "_IPD_" + str(num_players)
+            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+            
+
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            
+            
+            full_save_path = os.path.join(folder_path, save_name)
+            network.save_graph(player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, full_save_path)
 
         df_row = pd.DataFrame([list(params) + delay_metrics_model_sum + delay_metrics_model_ipd], columns=[
             'num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay',
@@ -194,7 +208,8 @@ if optimize:
 
     # Save the DataFrame to a CSV file
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
-    csv = save_dir+topology+"_IPD_"+str(num_players)+"_"+str(nr_of_servers)+"_"+str(min_players_connected)+"_"+str(max_connected_players)+"_"+str(timestamp)+".csv"
+    csv = save_dir+topology+"_IPD_"+str(num_players)+str(timestamp)+".csv"
+    latest_csv_dir = csv
     df_results.to_csv(csv, index=False)
 
 #                                                 _____  _____  _____ _   _ _______ 
@@ -210,8 +225,12 @@ if plot:
 
     # Assume df_results is your DataFrame containing the mentioned columns
     # Load data from CSV into df_results DataFrame
-    csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
-    df_results = pd.read_csv(csv_file_path+"usa_IPD_64_4_12_20_20231129192546"+".csv")
+    if optimize:
+        df_results = pd.read_csv(latest_csv_dir)
+    else:
+        csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
+        df_results = pd.read_csv(csv_file_path + "usa_IPD_100_7_12_32_20231129214020.csv")
+
 
     # Plotting average player-to-server delay for both methods
     plt.figure(figsize=(10, 6))
@@ -340,10 +359,10 @@ if plot:
 # visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
 # visualization.display_plots()
 
-file_path = save_dir+"usa_SUM_64_4_12_20"+".gml"
-draw_graph_from_gml(file_path,1,"Sum method", show_edge_labels=True)
+file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_10_4_32"+".gml"
+draw_graph_from_gml(file_path,1,"Sum method", show_edge_labels=False)
 plt.tight_layout()
-file_path = save_dir+"usa_IPD_64_4_12_20"+".gml"
-draw_graph_from_gml(file_path,2,"IPD method", show_edge_labels=True)
-plt.tight_layout()
+file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_10_4_32"+".gml"
+draw_graph_from_gml(file_path,2,"IPD method", show_edge_labels=False)
+#plt.tight_layout()
 plt.show()

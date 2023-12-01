@@ -1,14 +1,9 @@
 import networkx as nx
+from utils import euclidean_distance
 import math
 
 # Read the GML file and create a graph
-G = nx.read_gml("C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/37_cost.gml")
-
-# Define your correction function using euclidean_distance
-def euclidean_distance(pos1, pos2):
-    x1, y1 = map(float, pos1)
-    x2, y2 = map(float, pos2)
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+G = nx.read_gml("C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/25_italy.gml")
 
 # Iterate through edges to identify and correct incorrect lengths
 for u, v, data in G.edges(data=True):
