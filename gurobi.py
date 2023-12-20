@@ -2,6 +2,16 @@ import gurobipy as grb
 from gurobipy import GRB
 from network_graph import *
 
+    # Maximum server-player delay
+    # max_server_player_delay = sum_model.addVar(name='max_server_player_delay')
+    # # Constraint: Limit the maximum delay between a server and a player
+    # for server in server_positions:
+    #     for player in players:
+    #         server_player_delay = network.get_shortest_path_delay(player, server)
+    #         # Add constraint to limit maximum delay between server and player
+    #         sum_model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)] * server_selected[server])
+    # Add a constraint to ensure the maximum delay is not exceeded
+    #sum_model.addConstr(max_server_player_delay <= max_allowed_delay)
 
 def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
     sum_model = grb.Model()
@@ -40,17 +50,6 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             grb.quicksum(connected_players[(player, server)] for player in players) >= min_players_connected * server_selected[server],
             name=f"min_connected_players_to_server_{server}"
         )
-
-    # Maximum server-player delay
-    # max_server_player_delay = sum_model.addVar(name='max_server_player_delay')
-    # # Constraint: Limit the maximum delay between a server and a player
-    # for server in server_positions:
-    #     for player in players:
-    #         server_player_delay = network.get_shortest_path_delay(player, server)
-    #         # Add constraint to limit maximum delay between server and player
-    #         sum_model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)] * server_selected[server])
-    # Add a constraint to ensure the maximum delay is not exceeded
-    #sum_model.addConstr(max_server_player_delay <= max_allowed_delay)
 
     # Objective function: minimize total delay
     sum_model.setObjective(

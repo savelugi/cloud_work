@@ -29,7 +29,7 @@ class Visualization:
 
         # Címkék hozzáadása a csomópontokhoz
         node_labels = {node: node for node in self.network_graph.graph.nodes}
-        nx.draw_networkx_labels(self.network_graph.graph, pos, labels=node_labels)
+       # nx.draw_networkx_labels(self.network_graph.graph, pos, labels=node_labels)
 
         # Kirajzolás beállításai
         plt.title("Szerverek és Játékosok")

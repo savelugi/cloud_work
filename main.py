@@ -8,7 +8,7 @@ topology = "cost"
 
 optimize = False
 save = False
-plot = False
+plot = True
 
 # Parameters
 param_combinations_usa = [
@@ -111,40 +111,40 @@ if optimize:
         ######################################################  \___ \| |  | | |\/| | ########################################################
         ######################################################  ____) | |__| | |  | | ########################################################
         ###################################################### |_____/ \____/|_|  |_| ########################################################
-        # print_pattern()
-        # timer.start()
+        print_pattern()
+        timer.start()
 
-        # connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
-        #     network=network, 
-        #     server_positions=server_positions,
-        #     players=players, 
-        #     nr_of_servers=nr_of_servers,
-        #     min_players_connected=min_players_connected, 
-        #     max_connected_players=max_connected_players,
-        #     max_allowed_delay=max_allowed_delay)
+        connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
+            network=network, 
+            server_positions=server_positions,
+            players=players, 
+            nr_of_servers=nr_of_servers,
+            min_players_connected=min_players_connected, 
+            max_connected_players=max_connected_players,
+            max_allowed_delay=max_allowed_delay)
 
-        # timer.stop()   
+        timer.stop()   
 
-        # # Calculate metrics for the first Gurobi model
-        # if selected_servers_model_sum is not None:
-        #     delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
-        #     delay_metrics_model_sum.append(len(selected_servers_model_sum))
-        #     delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
-        # else:
-        #     delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
+        # Calculate metrics for the first Gurobi model
+        if selected_servers_model_sum is not None:
+            delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
+            delay_metrics_model_sum.append(len(selected_servers_model_sum))
+            delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
+        else:
+            delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
 
 
-        # if save:
-        #     dir_name = topology + "_SUM_" + str(num_players)
-        #     save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-        #     folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+        if save:
+            dir_name = topology + "_SUM_" + str(num_players)
+            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
             
-        #     # Check if the directory exists, if not, create it
-        #     if not os.path.exists(folder_path):
-        #         os.makedirs(folder_path)
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
             
-        #     full_save_path = os.path.join(folder_path, save_name)
-        #     network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
+            full_save_path = os.path.join(folder_path, save_name)
+            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
 
         #                                                    _____ _____  _____   
         ################################################### |_   _|  __ \|  __ \   #######################################################
@@ -230,7 +230,7 @@ if plot:
         df_results = pd.read_csv(latest_csv_dir)
     else:
         csv_file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
-        csv_file_name = "cost100_20231201134812"
+        csv_file_name = "cost_100_20231205230210"
         try:
             df_results = pd.read_csv(csv_file_path + csv_file_name+".csv")
         except FileNotFoundError:
@@ -360,13 +360,13 @@ if plot:
        
 # # Drawing network decisions
 # visualization = Visualization(network)
-# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
+# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=False)
 # visualization.display_plots()
 
-if True:
+if False:
     plt.figure(figsize=(10, 6))
     file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_5_6_20"+".gml"
-    draw_graph_from_gml(file_path,1,"(a) Sum method, 5 servers", show_edge_labels=False)
+    draw_graph_from_gml(file_path,1,"(a) SUM method, 5 servers", show_edge_labels=False)
 
     file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_5_6_20"+".gml"
     draw_graph_from_gml(file_path,2,"(b) IPD method, 5 servers", show_edge_labels=False)
