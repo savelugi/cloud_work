@@ -1,70 +1,25 @@
+import os
 from utils import *
 from network_graph import *
 from visualization import *
 from gurobi import *
 from datetime import datetime
 
+#usa, germany, cost
 topology = "cost"
 
-optimize = False
-save = False
-plot = True
+config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
+config = read_configuration(config_file)
 
-# Parameters
-param_combinations_usa = [
-    #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (100,                  9,                  6,                      20,                        27),
-    (100,                  8,                  6,                      20,                        27),
-    (100,                  7,                  6,                      20,                        27),
-    (100,                  6,                  6,                      20,                        27),
-    (100,                  5,                  6,                      20,                        27)]
-
-param_combinations_germany = [
-    #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (100,                  10,                  4,                      32,                        23),
-    (100,                  10,                  6,                      32,                        23),
-    (100,                  10,                  8,                      32,                        23),
-    (100,                  10,                  10,                     32,                        23),
-    (100,                  10,                  12,                     32,                        23)]
-
-param_combinations_cost = [
-    #num_players    nr_of_servers    min_players_connected     max_connected_players        max_allowed_delay
-    (100,                  9,                  6,                      20,                        5),
-    (100,                  8,                  6,                      20,                        5),
-    (100,                  7,                  6,                      20,                        5),
-    (100,                  6,                  6,                      20,                        5),
-    (100,                  5,                  6,                      20,                        5)]
-
-#topology_dir = "C:/Users/bbenc/Documents/NETWORKZ/cloud_work/src/"
-topology_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/src/"
-save_dir = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/save/"
-#file_path = "C:/Users/bbenc/OneDrive/Documents/aGraph/cloud_work/10player_3server_60db_2000ms.gml"
-
-# Player generation parameters
-if topology == "usa":
-    lat_range = (25,45) # from graph
-    long_range = (-123, -70) # from graph
-elif topology == "germany":
-    lat_range = (47, 55) # from graph
-    long_range = (6, 14) # from graph
-elif topology == "cost":
-    lat_range = (35, 62) # from graph
-    long_range = (-10,28) # from graph
-else:
-    print("error loading latitude and longitude")
-
+topology_file = get_topology_filename(topology, config)
+save_dir = get_save_dir(config)
 seed_value = 42
+
+debug_prints, optimize, save, plot, sum_model, ipd_model = get_toggles_from_config(config)
 
 # Adding server nodes
 network = NetworkGraph()
-if topology == "usa":
-    network.load_topology(topology_dir+"26_usa_scaled.gml")
-elif topology == "germany":
-    network.load_topology(topology_dir+"50_germany_scaled.gml")
-elif topology == "cost":
-    network.load_topology(topology_dir+"37_cost_scaled.gml")
-else:
-    print("error loading topology")
+network.load_topology(topology_file)
 
 # Getting server positions
 server_positions = network.get_server_positions()
@@ -72,122 +27,114 @@ server_positions = network.get_server_positions()
 timer = Timer()
 if optimize:
     df_results = pd.DataFrame()
-    if topology == "usa":
-        param_combinations = param_combinations_usa
-    elif topology == "germany":
-        param_combinations = param_combinations_germany
-    elif topology == "cost":
-        param_combinations = param_combinations_cost
-    else:
-        print("error loading parameters")
+    
+    param_combinations = read_parameters_from_config(topology, config)
 
+    # Main loop, going through all the parameters
     for params in param_combinations:
         num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = params
 
         # Adding server nodes
         network = NetworkGraph()
-        if topology == "usa":
-            network.load_topology(topology_dir+"26_usa_scaled.gml")
-        elif topology == "germany":
-            network.load_topology(topology_dir+"50_germany_scaled.gml")
-        elif topology == "cost":
-            network.load_topology(topology_dir+"37_cost_scaled.gml")
-        else:
-            print("error loading topology")
+        network.load_topology(topology_file)
 
         # Getting server positions
         server_positions = network.get_server_positions()
 
+        long_range, lat_range = get_lat_long_range(topology)
         players = generate_players(num_players, long_range, lat_range, seed_value)
-        network.add_nodes_from_keys(players)
+        network.add_players(players)
 
         for player in players:
             network.connect_player_to_server(players, player, server_positions)
+        
+# SUM        
+######################################################################################################################################################
+######################################################################################################################################################
+        if sum_model:
+            if debug_prints:
+                print_pattern()
 
+            timer.start()
 
-        #                                                        _____ _    _ __  __ 
-        ######################################################  / ____| |  | |  \/  | ########################################################
-        ###################################################### | (___ | |  | | \  / | ########################################################
-        ######################################################  \___ \| |  | | |\/| | ########################################################
-        ######################################################  ____) | |__| | |  | | ########################################################
-        ###################################################### |_____/ \____/|_|  |_| ########################################################
-        print_pattern()
-        timer.start()
+            connected_players_info_model_sum, player_server_paths_model_sum = sum_delay_optimization(
+                network=network, 
+                server_positions=server_positions,
+                players=players, 
+                nr_of_servers=nr_of_servers,
+                min_players_connected=min_players_connected, 
+                max_connected_players=max_connected_players,
+                max_allowed_delay=max_allowed_delay,
+                print=debug_prints)
 
-        connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
-            network=network, 
-            server_positions=server_positions,
-            players=players, 
-            nr_of_servers=nr_of_servers,
-            min_players_connected=min_players_connected, 
-            max_connected_players=max_connected_players,
-            max_allowed_delay=max_allowed_delay)
+            timer.stop()   
 
-        timer.stop()   
+            # Calculate metrics for the first Gurobi model
+            if connected_players_info_model_sum is not None:
+                delay_metrics_model_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_sum, method_type='Delay sum method', print=debug_prints)                
+                delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
 
-        # Calculate metrics for the first Gurobi model
-        if selected_servers_model_sum is not None:
-            delay_metrics_model_sum = calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Delay sum method')
-            delay_metrics_model_sum.append(len(selected_servers_model_sum))
-            delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
-        else:
-            delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
+                qoe_conf_preferences = config['Weights']
+                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_sum, server_to_player_delays, qoe_conf_preferences)
+            else:
+                delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
 
+            if save:
+                dir_name = topology + "_SUM_" + str(num_players)
+                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+                
+                # Check if the directory exists, if not, create it
+                if not os.path.exists(folder_path):
+                    os.makedirs(folder_path)
+                
+                full_save_path = os.path.join(folder_path, save_name)
+                network.save_graph(player_server_paths_model_sum, server_positions, connected_players_info_model_sum, full_save_path)
+        elif debug_prints:
+            print("Sum model is turned off at this optimization sequece!")
 
-        if save:
-            dir_name = topology + "_SUM_" + str(num_players)
-            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-            
-            # Check if the directory exists, if not, create it
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-            
-            full_save_path = os.path.join(folder_path, save_name)
-            network.save_graph(player_server_paths_model_sum, server_positions, selected_servers_model_sum, full_save_path)
+# IPD
+######################################################################################################################################################
+######################################################################################################################################################
+        if ipd_model:
+            timer.start()
 
-        #                                                    _____ _____  _____   
-        ################################################### |_   _|  __ \|  __ \   #######################################################
-        ###################################################   | | | |__) | |  | |  #######################################################
-        ###################################################   | | |  ___/| |  | |  #######################################################
-        ###################################################   | |_| |    | |__| |  #######################################################
-        ################################################### |_____|_|    |_____/   #######################################################
+            connected_players_info_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
+                network=network,
+                server_positions=server_positions,
+                players=players,
+                nr_of_servers=nr_of_servers,
+                min_players_connected=min_players_connected,
+                max_connected_players=max_connected_players,
+                max_allowed_delay=max_allowed_delay,
+                print=debug_prints)
 
-        timer.start()
+            timer.stop()
 
-        connected_players_info_model_ipd, selected_servers_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
-            network=network,
-            server_positions=server_positions,
-            players=players,
-            nr_of_servers=nr_of_servers,
-            min_players_connected=min_players_connected,
-            max_connected_players=max_connected_players,
-            max_allowed_delay=max_allowed_delay)
+            # Calculate metrics for the second Gurobi model
+            if connected_players_info_model_ipd is not None:
+                delay_metrics_model_ipd = network.calculate_delays(connected_players_info_model_ipd, method_type='Interplayer delay method', print=debug_prints)
+                delay_metrics_model_ipd.append(timer.get_elapsed_time())
+            else:
+                delay_metrics_model_ipd = [0, 0, 0, 0, 0, 0, 0, 0]
 
-        timer.stop()
+            if save:
+                dir_name = topology + "_IPD_" + str(num_players)
+                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+                
 
-        # Calculate metrics for the second Gurobi model
-        if selected_servers_model_ipd is not None:
-            delay_metrics_model_ipd = calculate_delay_metrics(network, connected_players_info_model_ipd, selected_servers_model_ipd, method_type='Interplayer delay method')
-            delay_metrics_model_ipd.append(len(selected_servers_model_ipd))
-            delay_metrics_model_ipd.append(timer.get_elapsed_time())
-        else:
-            delay_metrics_model_ipd = [0, 0, 0, 0, 0, 0, 0, 0]
+                # Check if the directory exists, if not, create it
+                if not os.path.exists(folder_path):
+                    os.makedirs(folder_path)
+                
+                
+                full_save_path = os.path.join(folder_path, save_name)
+                network.save_graph(player_server_paths_model_ipd, server_positions, connected_players_info_model_ipd, full_save_path)
+        elif debug_prints:
+            print("IPD model is turned off at this optimization sequece!")
 
-        if save:
-            dir_name = topology + "_IPD_" + str(num_players)
-            save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-            folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-            
-
-            # Check if the directory exists, if not, create it
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path)
-            
-            
-            full_save_path = os.path.join(folder_path, save_name)
-            network.save_graph(player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, full_save_path)
-        if save:
+        if save and sum_model and ipd_model:
             df_row = pd.DataFrame([list(params) + delay_metrics_model_sum + delay_metrics_model_ipd], columns=[
                 'num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay',
                 'average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
@@ -200,7 +147,7 @@ if optimize:
 
             df_results = pd.concat([df_results, df_row])
 
-    if save:
+    if save and sum_model and ipd_model:
         # Assuming df_results is your DataFrame
         pd.set_option('display.max_rows', None)  # Show all rows
         pd.set_option('display.max_columns', None)  # Show all columns
@@ -213,14 +160,9 @@ if optimize:
         latest_csv_dir = csv
         df_results.to_csv(csv, index=False)
 
-#                                                 _____  _____  _____ _   _ _______ 
-###############################################  |  __ \|  __ \|_   _| \ | |__   __| ################################################
-###############################################  | |__) | |__) | | | |  \| |  | |    ################################################
-###############################################  |  ___/|  _  /  | | | . ` |  | |    ################################################
-###############################################  | |    | | \ \ _| |_| |\  |  | |    ################################################
-###############################################  |_|    |_|  \_\_____|_| \_|  |_|    ################################################
-
-
+# PLOT
+######################################################################################################################################################
+######################################################################################################################################################
 
 if plot:
 
@@ -291,7 +233,7 @@ if plot:
 #     print(network.get_max_server_to_server_delay(server_positions)[1])
 
 #     players = generate_players(num_players, long_range, lat_range, seed_value)
-#     network.add_nodes_from_keys(players)
+#     network.add_players(players)
 
 #     for player in players:
 #         network.connect_player_to_server(players, player, server_positions)
@@ -305,7 +247,7 @@ if plot:
 #         max_connected_players=max_connected_players,
 #         max_allowed_delay=max_allowed_delay
 #     )
-#     calculate_delay_metrics(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Sum delay method')
+#     calculate_delays(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Sum delay method')
 #     connected_players_info_model_ipd, selected_servers_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
 #         network=network,
 #         server_positions=server_positions,
@@ -315,7 +257,7 @@ if plot:
 #         max_connected_players=max_connected_players,
 #         max_allowed_delay=max_allowed_delay
 #     )
-#     calculate_delay_metrics(network, connected_players_info_model_ipd, selected_servers_model_ipd, method_type='Interplayer delay method')
+#     calculate_delays(network, connected_players_info_model_ipd, selected_servers_model_ipd, method_type='Interplayer delay method')
 #     # Preparing positions
 #     pos = {**server_positions, **players}
 
@@ -350,7 +292,7 @@ if plot:
 # print(network.get_max_server_to_server_delay(server_positions)[1])
 
 # players = generate_players(num_players, long_range, lat_range, seed_value)
-# network.add_nodes_from_keys(players)
+# network.add_players(players)
 
 # for player in players:
 #     network.connect_player_to_server(players, player, server_positions)

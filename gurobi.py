@@ -2,21 +2,11 @@ import gurobipy as grb
 from gurobipy import GRB
 from network_graph import *
 
-    # Maximum server-player delay
-    # max_server_player_delay = sum_model.addVar(name='max_server_player_delay')
-    # # Constraint: Limit the maximum delay between a server and a player
-    # for server in server_positions:
-    #     for player in players:
-    #         server_player_delay = network.get_shortest_path_delay(player, server)
-    #         # Add constraint to limit maximum delay between server and player
-    #         sum_model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)] * server_selected[server])
-    # Add a constraint to ensure the maximum delay is not exceeded
-    #sum_model.addConstr(max_server_player_delay <= max_allowed_delay)
-
-def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
+def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, print):
     sum_model = grb.Model()
-    # Set Gurobi parameter to suppress output
-    #sum_model.setParam('OutputFlag', 0)
+    if not print:
+        # Set Gurobi parameter to suppress output
+        sum_model.setParam('OutputFlag', 0)
 
     # Decision variables: binary variable indicating if a server is chosen
     server_selected = {}
@@ -65,8 +55,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
     sum_model.optimize()
 
     if sum_model.status == GRB.OPTIMAL:
-        # Initialize selected_servers_model_1 as an empty list
-        selected_servers_model_1 = []
+        # Initialize player_server_paths_model_1 as an empty list
         player_server_paths_model_1 = []
 
         # Dictionary to store connected players for each server
@@ -75,34 +64,35 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
         # Retrieve the selected servers and connected players
         for server_idx in server_positions:
             if server_selected[server_idx].x > 0.5:
-                selected_servers_model_1.append(server_idx)
                 connected_players_to_server = []
                 for player in players:
                     if connected_players[(player, server_idx)].x > 0.5:
                         connected_players_to_server.append(player)
                 connected_players_info_model_1[server_idx] = connected_players_to_server
 
-        # Print connected players for each server
-        for server_idx, connected_players_list in connected_players_info_model_1.items():
-            if connected_players_list:
-                for player in connected_players_list:
-                    path = network.get_shortest_path(player, server_idx)
-                    player_server_paths_model_1.append((player, server_idx, path))
+        if print:
+            # Print connected players for each server
+            for server_idx, connected_players_list in connected_players_info_model_1.items():
+                if connected_players_list:
+                    for player in connected_players_list:
+                        path = network.get_shortest_path(player, server_idx)
+                        player_server_paths_model_1.append((player, server_idx, path))
 
-                print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
-            #else:
-            # print(f"To server {server_idx} no players are connected")
+                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                #else:
+                # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
-        return None, None, None
+        return None, None
 
-    return connected_players_info_model_1, selected_servers_model_1, player_server_paths_model_1
+    return connected_players_info_model_1, player_server_paths_model_1
 
-def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay):
+def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, print):
     # Create a new Gurobi model
     model = grb.Model('MinimizeMaxInterplayerDelay')
-    # Set Gurobi parameter to suppress output
-    #model.setParam('OutputFlag', 0)
+    if not print:
+        # Set Gurobi parameter to suppress output
+        model.setParam('OutputFlag', 0)
 
     # Decision variables: binary variable indicating if a server is chosen
     server_selected = {}
@@ -176,8 +166,7 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
     model.optimize()
 
     if model.status == GRB.OPTIMAL:
-        # Initialize selected_servers_model_2 as an empty list
-        selected_servers_model_2 = []
+        # Initialize player_server_paths_model_2 as an empty list
         player_server_paths_model_2 = []
 
         # Dictionary to store connected players for each server
@@ -186,28 +175,28 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
         # Retrieve the selected servers and connected players
         for server_idx in server_positions:
             if server_selected[server_idx].x > 0.5:
-                selected_servers_model_2.append(server_idx)
                 connected_players_to_server = []
                 for player in players:
                     if connected_players[(player, server_idx)].x > 0.5:
                         connected_players_to_server.append(player)
                 connected_players_info_model_2[server_idx] = connected_players_to_server
 
-        # Print connected players for each server
-        for server_idx, connected_players_list in connected_players_info_model_2.items():
-            if connected_players_list:
-                for player in connected_players_list:
-                    path = network.get_shortest_path(player, server_idx)
-                    player_server_paths_model_2.append((player, server_idx, path))
+        if print:
+            # Print connected players for each server
+            for server_idx, connected_players_list in connected_players_info_model_2.items():
+                if connected_players_list:
+                    for player in connected_players_list:
+                        path = network.get_shortest_path(player, server_idx)
+                        player_server_paths_model_2.append((player, server_idx, path))
 
-                print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
-            #else:
-            # print(f"To server {server_idx} no players are connected")
+                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                #else:
+                # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
-        return None, None, None
+        return None, None
 
-    return connected_players_info_model_2, selected_servers_model_2, player_server_paths_model_2
+    return connected_players_info_model_2, player_server_paths_model_2
 
 def run_optimization(network, server_positions, players, nr_of_servers, max_connected_players, max_allowed_delay):
     connected_players_info_sum, selected_servers_sum, _ = sum_delay_optimization(

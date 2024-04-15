@@ -20,13 +20,23 @@ class NetworkGraph:
                 server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
         return server_positions
     
-    def add_nodes_from_keys(self, nodes):
-        for node_name, coordinates in nodes.items():
-            x, y = coordinates
-            self.graph.add_node(node_name, Latitude=y, Longitude=x)
+    def add_players(self, nodes):
+        for node_name, node_info in nodes.items():
+            x, y = node_info['position']
+            node_parameters = {
+                #'Longitude': x,
+                #'Latitude': y,
+                'position': node_info['position'],
+                'device_type': node_info['device_type'],
+                'game': node_info['game'],
+                'ping_preference': node_info['ping_preference'],
+                'video_quality_preference': node_info['video_quality_preference']
+            }
+            self.graph.add_node(node_name, **node_parameters)
+
     
     def connect_player_to_server(self, players, player_position, server_positions):
-        distance, key = min_distance(players[player_position], server_positions)
+        distance, key = min_distance(players[player_position]['position'], server_positions)
         key_list = list(server_positions.keys())
         self.graph.add_edge(player_position, key_list[int(key)], length=distance)
 
@@ -100,7 +110,12 @@ class NetworkGraph:
                         between = (server1, server2)
         return [max_delay, between]
     
-    def save_graph(self, player_server_paths, servers, selected_servers, save_name):
+    def save_graph(self, player_server_paths, servers, connected_players_info, save_name):
+        selected_servers = ()
+        for server_idx, connected_players_list in connected_players_info.items():
+            if connected_players_list:
+                selected_servers.append(server_idx)
+
         # Add node colors and edge colors as attributes
         node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in servers else 'g' for node in self.graph.nodes()}
         
@@ -120,53 +135,80 @@ class NetworkGraph:
         # Save the graph to a GML file
         nx.write_gml(self.graph, save_name+".gml")
 
+    def calculate_qoe_metrics(self, connected_players_info, server_to_player_delay_list, config_preferences):
+        player_score = {}
+
+        ping_weight = float(config_preferences['ping_weight'])
+        video_quality_weight = float(config_preferences['video_quality_weight'])
+
+
+        for player, server, ping_act in server_to_player_delay_list:
+            ping_pref = self.graph.nodes[player]['ping_preference']
+            ping_diff_score = calculate_ping_score(ping_act, ping_pref)
+
+            # the lower the actual ping, the bigger the ping score
+            ping_act_score = 100 * 1 / ping_act
+
+            if self.graph.nodes[server]['server']['gpu'] == '1':
+                video_quality_diff_score = 0
+            else:
+                video_quality_diff_score = 1
+
+            player_score[player] = (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
+
+        return player_score
+        
     # Function to calculate interplayer delay metrics
-def calculate_delay_metrics(self, connected_players_info, selected_servers, method_type):
-    server_to_player_delays = []
-    player_to_player_delays = []
-    min_value = (0, 0, float('inf'))
-    max_value = (0, 0, 0)
+    def calculate_delays(self, connected_players_info, method_type, print):
+        selected_servers = []
+        server_to_player_delays = []
+        player_to_player_delays = []
+        min_value = (0, 0, float('inf'))
+        max_value = (0, 0, 0)
 
-    for server_idx, connected_players_list in connected_players_info.items():
-        if server_idx:
-            for player in connected_players_list:
-                server_to_player_delay = self.get_shortest_path_delay(player, server_idx)
-                server_to_player_delays.append((player, server_idx, server_to_player_delay))
+        for server_idx, connected_players_list in connected_players_info.items():
+            if connected_players_list:
+                for player in connected_players_list:
+                    server_to_player_delay = self.get_shortest_path_delay(player, server_idx)
+                    server_to_player_delays.append((player, server_idx, server_to_player_delay))
 
-    for i in range(len(server_to_player_delays)):
-        for j in range(i + 1, len(server_to_player_delays)):
-            player_1, server_1, delay_1 = server_to_player_delays[i]
-            player_2, server_2, delay_2 = server_to_player_delays[j]
-            if player_1 != player_2:
-                if server_1 == server_2:
-                    inter_player_delay = delay_1 + delay_2
+                selected_servers.append(server_idx)
 
-                player_to_player_delays.append(inter_player_delay)
+        for i in range(len(server_to_player_delays)):
+            for j in range(i + 1, len(server_to_player_delays)):
+                player_1, server_1, delay_1 = server_to_player_delays[i]
+                player_2, server_2, delay_2 = server_to_player_delays[j]
+                if player_1 != player_2:
+                    if server_1 == server_2:
+                        inter_player_delay = delay_1 + delay_2
 
-                if inter_player_delay < min_value[2]:
-                    min_value = (player_1, player_2, inter_player_delay)
-                if inter_player_delay > max_value[2]:
-                    max_value = (player_1, player_2, inter_player_delay)
+                    player_to_player_delays.append(inter_player_delay)
 
-    # Calculate metrics
-    delays_only = [delay for _, _, delay in server_to_player_delays]
-    average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
-    min_player_to_server_delay = round(min(delays_only),2)
-    max_player_to_server_delay = round(max(delays_only),2)
+                    if inter_player_delay < min_value[2]:
+                        min_value = (player_1, player_2, inter_player_delay)
+                    if inter_player_delay > max_value[2]:
+                        max_value = (player_1, player_2, inter_player_delay)
 
-    average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays),2)
-    min_player_to_player_delay = round(min_value[2],2)
-    max_player_to_player_delay = round(max_value[2],2)
+        # Calculate metrics
+        delays_only = [delay for _, _, delay in server_to_player_delays]
+        average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
+        min_player_to_server_delay = round(min(delays_only),2)
+        max_player_to_server_delay = round(max(delays_only),2)
 
-    # Print the metrics
-    print(f"\nThe {method_type} method selected servers are: {selected_servers}")
-    print(f"Average player to server delay: {average_player_to_server_delay}")
-    print(f"Minimum player to server delay: {min_player_to_server_delay}")
-    print(f"Maximum player to server delay: {max_player_to_server_delay}")
+        average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays),2)
+        min_player_to_player_delay = round(min_value[2],2)
+        max_player_to_player_delay = round(max_value[2],2)
 
-    print(f"\nAverage interplayer delay: {average_player_to_player_delay}")
-    print(f"Maximum interplayer delay: {max_value}")
-    print(f"Minimum interplayer delay: {min_value}")
+        if print:
+            # Print the metrics
+            print(f"\nThe {method_type} method selected servers are: {selected_servers}")
+            print(f"Average player to server delay: {average_player_to_server_delay}")
+            print(f"Minimum player to server delay: {min_player_to_server_delay}")
+            print(f"Maximum player to server delay: {max_player_to_server_delay}")
 
-    return [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
-        average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay]
+            print(f"\nAverage interplayer delay: {average_player_to_player_delay}")
+            print(f"Maximum interplayer delay: {max_value}")
+            print(f"Minimum interplayer delay: {min_value}")
+
+        return [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
+            average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay, len(selected_servers)], server_to_player_delays
