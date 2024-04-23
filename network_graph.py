@@ -22,11 +22,9 @@ class NetworkGraph:
     
     def add_players(self, nodes):
         for node_name, node_info in nodes.items():
-            x, y = node_info['position']
             node_parameters = {
-                #'Longitude': x,
-                #'Latitude': y,
-                'position': node_info['position'],
+                'Longitude': node_info['Longitude'],
+                'Latitude': node_info['Latitude'],                
                 'device_type': node_info['device_type'],
                 'game': node_info['game'],
                 'ping_preference': node_info['ping_preference'],
@@ -36,7 +34,7 @@ class NetworkGraph:
 
     
     def connect_player_to_server(self, players, player_position, server_positions):
-        distance, key = min_distance(players[player_position]['position'], server_positions)
+        distance, key = min_distance((players[player_position]['Longitude'], players[player_position]['Latitude']), server_positions)
         key_list = list(server_positions.keys())
         self.graph.add_edge(player_position, key_list[int(key)], length=distance)
 
@@ -74,8 +72,8 @@ class NetworkGraph:
             # Ha nincs útvonal a két pont között
             return float('inf')
 
-    def get_nodes(self):
-        return(self.graph.nodes())
+    def get_nodes(self, data=False):
+        return(self.graph.nodes(data=data))
     
     def get_edges(self):
         return list(self.graph.edges())
@@ -111,7 +109,7 @@ class NetworkGraph:
         return [max_delay, between]
     
     def save_graph(self, player_server_paths, servers, connected_players_info, save_name):
-        selected_servers = ()
+        selected_servers = []
         for server_idx, connected_players_list in connected_players_info.items():
             if connected_players_list:
                 selected_servers.append(server_idx)
@@ -159,7 +157,7 @@ class NetworkGraph:
         return player_score
         
     # Function to calculate interplayer delay metrics
-    def calculate_delays(self, connected_players_info, method_type, print):
+    def calculate_delays(self, connected_players_info, method_type, debug_prints):
         selected_servers = []
         server_to_player_delays = []
         player_to_player_delays = []
@@ -199,7 +197,7 @@ class NetworkGraph:
         min_player_to_player_delay = round(min_value[2],2)
         max_player_to_player_delay = round(max_value[2],2)
 
-        if print:
+        if debug_prints:
             # Print the metrics
             print(f"\nThe {method_type} method selected servers are: {selected_servers}")
             print(f"Average player to server delay: {average_player_to_server_delay}")

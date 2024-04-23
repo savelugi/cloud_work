@@ -2,9 +2,9 @@ import gurobipy as grb
 from gurobipy import GRB
 from network_graph import *
 
-def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, print):
+def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, debug_prints):
     sum_model = grb.Model()
-    if not print:
+    if not debug_prints:
         # Set Gurobi parameter to suppress output
         sum_model.setParam('OutputFlag', 0)
 
@@ -70,7 +70,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
                         connected_players_to_server.append(player)
                 connected_players_info_model_1[server_idx] = connected_players_to_server
 
-        if print:
+        if debug_prints:
             # Print connected players for each server
             for server_idx, connected_players_list in connected_players_info_model_1.items():
                 if connected_players_list:
@@ -87,10 +87,10 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
 
     return connected_players_info_model_1, player_server_paths_model_1
 
-def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, print):
+def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, debug_prints):
     # Create a new Gurobi model
     model = grb.Model('MinimizeMaxInterplayerDelay')
-    if not print:
+    if not debug_prints:
         # Set Gurobi parameter to suppress output
         model.setParam('OutputFlag', 0)
 
@@ -105,17 +105,6 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
     # Define a new set of decision variables representing connected players to servers
     connected_players = {(player, server): model.addVar(vtype=GRB.BINARY, name=f"player_{player}_connected_to_{server}")
                         for player in players for server in server_positions}
-    
-    # Maximum server-player delay
-    #max_server_player_delay = model.addVar(name='max_server_player_delay')
-    # # Constraint: Limit the maximum delay between a server and a player
-    # for server in server_positions:
-    #     for player in players:
-    #         server_player_delay = network.get_shortest_path_delay(player, server)
-    #         # Add constraint to limit maximum delay between server and player
-    #         model.addConstr(max_server_player_delay >= server_player_delay * connected_players[(player, server)])
-    # Add a constraint to ensure the maximum delay is not exceeded
-    #model.addConstr(max_server_player_delay <= max_allowed_delay)
     
     # 1. Constraint: Calculate maximum interplayer delay
     for server in server_positions:
@@ -181,7 +170,7 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
                         connected_players_to_server.append(player)
                 connected_players_info_model_2[server_idx] = connected_players_to_server
 
-        if print:
+        if debug_prints:
             # Print connected players for each server
             for server_idx, connected_players_list in connected_players_info_model_2.items():
                 if connected_players_list:
@@ -216,58 +205,3 @@ def run_optimization(network, server_positions, players, nr_of_servers, max_conn
         max_allowed_delay=max_allowed_delay)
     
     return connected_players_info_sum, selected_servers_sum, connected_players_info_ipd, selected_servers_ipd
-
-
-#################################################################################################
-#################################################################################################
-
-# delay_sum = 0
-# min_value = float('inf')
-# server_nr = None
-# for server in server_positions:
-#     for player in players:
-#         delay = network.get_shortest_path_delay(player, server)
-#         delay_sum = delay_sum + delay
-
-#     #print(f"Delay sum if the server is in {server} = {delay_sum}")
-#     if (delay_sum < min_value):
-#         min_value = delay_sum
-#         server_nr = server
-
-#     delay_sum = 0
-
-# print(f"Brute force chosen server is: {server_nr}")
-
-
-#################################################################################################
-#################################################################################################
-
-# min_value = float('inf')
-# server_nr = None
-
-# for server in server_positions:
-#     max_interplayer_delay = 0
-#     max_delay_players = None
-
-#     for player1 in players:
-#         for player2 in players:
-#             if player1 != player2:
-#                 interplayer_delay = network.get_shortest_path_delay(player1, server) + network.get_shortest_path_delay(player2, server)
-                    
-#                 if interplayer_delay > max_interplayer_delay:
-#                     max_interplayer_delay = interplayer_delay
-#                     max_delay_players = (player1, player2)
-    
-#     if max_delay_players:
-#        print(f"max_interplayer_delay is {max_interplayer_delay} if server is {server} between {max_delay_players[0]} and {max_delay_players[1]}")
-
-#     if max_interplayer_delay < min_value:
-#         min_value = max_interplayer_delay
-#         server_nr = server
-
-# if server_nr is not None:
-#     print(f"The server with the minimum maximum interplayer delay is {server_nr} with a delay of {min_value}")
-# else:
-#     print("No valid server found.")
-
-##########################################################################################################################################

@@ -41,7 +41,8 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
             video_quality_preference = random.choice([1200, 2400, 3600, 4800])
         
         players[player_name] = {
-            'position': (x, y),
+            'Longitude': y,
+            'Latitude': x,
             'device_type': device_type,
             'game': game,
             'ping_preference': ping_preference,
@@ -114,7 +115,8 @@ def get_toggles_from_config(config):
     plot = config['Toggles'].getboolean('plot')
     sum_model = config['Toggles'].getboolean('sum_model')
     ipd_model = config['Toggles'].getboolean('ipd_model')
-    return debug_prints, optimize, save, plot, sum_model, ipd_model
+    gen_model = config['Toggles'].getboolean('gen_model')
+    return debug_prints, optimize, save, plot, sum_model, ipd_model, gen_model
 
 def read_parameters_from_config(topology, config):    
     if topology not in config:
