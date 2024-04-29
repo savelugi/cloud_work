@@ -124,17 +124,35 @@ def draw_graph_from_gml(file_path, nr, title, show_edge_labels):
 
     plt.title(title, y=-0.01, fontsize="19")
 
-def draw_compare_plot(df, x:str, x_label, y_sum:str, y_ipd:str, y_label, title:str) :
-    sum_data = df[['nr_of_servers', 'min_players_connected', 'max_allowed_delay', 'max_player_to_server_delay_sum', 'min_player_to_server_delay_sum',
-                   'average_player_to_server_delay_sum', 'max_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 
-                   'average_player_to_player_delay_sum','nr_of_selected_servers_sum', 'sim_time_sum']]
-    
-    ipd_data = df[['nr_of_servers', 'min_players_connected','max_allowed_delay', 'max_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd',
-                   'average_player_to_server_delay_ipd', 'max_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd',
-                   'average_player_to_player_delay_ipd', 'nr_of_selected_servers_ipd', 'sim_time_ipd']]
+def draw_compare_plot(df, x:str, x_label, y_mod1:str, y_mod2:str, y_label, title:str):
+    #ez a megoldas nagyon csunya ... 
+    if '_sum' in y_mod1:
+        mod1_data = df[['nr_of_servers', 'min_players_connected', 'max_allowed_delay', 'max_player_to_server_delay_sum', 'min_player_to_server_delay_sum',
+                    'average_player_to_server_delay_sum', 'max_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 
+                    'average_player_to_player_delay_sum','nr_of_selected_servers_sum', 'sim_time_sum']]
+        label1 = 'Sum'
+    if '_ipd' in y_mod1:    
+        mod1_data = df[['nr_of_servers', 'min_players_connected','max_allowed_delay', 'max_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd',
+                    'average_player_to_server_delay_ipd', 'max_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd',
+                    'average_player_to_player_delay_ipd', 'nr_of_selected_servers_ipd', 'sim_time_ipd']]
+        label1 = 'Ipd'
+                
+    if '_ipd' in y_mod2:    
+        mod2_data = df[['nr_of_servers', 'min_players_connected','max_allowed_delay', 'max_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd',
+                    'average_player_to_server_delay_ipd', 'max_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd',
+                    'average_player_to_player_delay_ipd', 'nr_of_selected_servers_ipd', 'sim_time_ipd']]
+        label2 = 'Ipd'
+    if '_gen' in y_mod2:    
+        mod2_data = df[['nr_of_servers', 'min_players_connected','max_allowed_delay', 'max_player_to_server_delay_gen', 'min_player_to_server_delay_gen',
+                    'average_player_to_server_delay_gen', 'max_player_to_player_delay_gen', 'min_player_to_player_delay_gen',
+                    'average_player_to_player_delay_gen', 'nr_of_selected_servers_gen', 'sim_time_gen']]
+        label2 = 'Gen'
 
-    sns.lineplot(data=sum_data, x=x, y=y_sum, label='Sum Method')
-    sns.lineplot(data=ipd_data, x=x, y=y_ipd, label='Ipd Method')
+        
+
+    sns.lineplot(data=mod1_data, x=x, y=y_mod1, label=label1+' Method')
+    sns.lineplot(data=mod2_data, x=x, y=y_mod2, label=label2+' Method')
+
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)

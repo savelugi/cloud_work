@@ -1,7 +1,5 @@
 import networkx as nx
 import random
-import matplotlib.pyplot as plt
-
 from utils import *
 from network_graph import *
 from visualization import *
@@ -10,7 +8,7 @@ from gurobi import *
 # #usa, germany, cost
 # topology = "cost"
 
-# config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
+# config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
 # config = read_configuration(config_file)
 
 # topology_file = get_topology_filename(topology, config)
@@ -19,7 +17,7 @@ from gurobi import *
 
 
 
-# debug_prints, optimize, save, plot, sum_model, ipd_model = get_toggles_from_config(config)
+# debug_prints, optimize, save, plot, sum_model, ipd_model, gen_model = get_toggles_from_config(config)
 
 # # Adding server nodes
 # network = NetworkGraph()
@@ -57,15 +55,28 @@ def enforce_max_players_per_server(chromosome, max_connected_players):
         server_counts[server] += 1
 
     for server, count in server_counts.items():
-        while count > max_connected_players:
+        if count > max_connected_players:
             # Find indices of players connected to this server
             indices = [i for i, s in enumerate(chromosome) if s == server]
-            # Randomly choose 5 players to keep
-            keep_indices = random.sample(indices, 5)
-            # Remove the rest of the players
-            chromosome = [chromosome[i] if i in keep_indices else None for i in range(len(chromosome))]
-            chromosome = [player for player in chromosome if player is not None]
-            count -= 1
+            # Randomly shuffle the indices to randomize the selection
+            random.shuffle(indices)
+            # Take the first max_connected_players indices to keep
+            drop_indices = indices[max_connected_players:]
+
+            # Determine servers with the second most players
+            sorted_counts = sorted(set(server_counts.values()), reverse=True)
+            second_max_count = sorted_counts[1] if len(sorted_counts) > 1 else sorted_counts[0]
+            second_max_player_servers = [srv for srv, cnt in server_counts.items() if cnt == second_max_count]
+
+            # Move dropped players to servers with the fewest players
+            for idx in drop_indices:
+                for srv in second_max_player_servers:
+                    if server_counts[srv] < max_connected_players:
+                        chromosome[idx] = srv
+                        server_counts[srv] += 1
+                        server_counts[server] -=1
+                        break
+
     return chromosome
 
 def enforce_max_server_occurrences(chromosome, max_server_nr):
@@ -88,12 +99,9 @@ def enforce_max_server_occurrences(chromosome, max_server_nr):
     chromosome = [server if server in servers_to_keep else None for server in chromosome]
 
     # Távolítsuk el a None értékeket
-    chromosome = [server for server in chromosome if server is not None]
+    chromosome = [server if server is not None else random.choice(servers_to_keep) for server in chromosome]
 
     return chromosome
-
-
-
 
 def fitness(network: NetworkGraph, chromosome, players):
     sum_delay = 0
@@ -108,10 +116,12 @@ def crossover(parent1, parent2, max_connected_players, max_server_nr):
     child2 = parent2[:crossover_point] + parent1[crossover_point:]
 
     # Ensure maximum players per server
-    child1 = enforce_max_players_per_server(child1, max_connected_players)
-    child2 = enforce_max_players_per_server(child2, max_connected_players)
+
     child1 = enforce_max_server_occurrences(child1, max_server_nr)
     child2 = enforce_max_server_occurrences(child2, max_server_nr)
+
+    child1 = enforce_max_players_per_server(child1, max_connected_players)
+    child2 = enforce_max_players_per_server(child2, max_connected_players)
 
     return child1, child2
 
@@ -122,8 +132,8 @@ def mutate(chromosome, mutation_rate, servers, max_connected_players, max_server
             mutated_chromosome[i] = random.choice(servers)
     
     # Ensure maximums after mutation
-    mutated_chromosome = enforce_max_players_per_server(mutated_chromosome, max_connected_players)
     mutated_chromosome = enforce_max_server_occurrences(mutated_chromosome, max_server_nr)
+    mutated_chromosome = enforce_max_players_per_server(mutated_chromosome, max_connected_players)
 
     return mutated_chromosome
 
@@ -172,17 +182,20 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
     #return best_solution, best_fitnesses, average_fitnesses, connected_players_to_server, player_server_paths
     return best_solution, connected_players_to_server, player_server_paths
 
-population_size = 100
-mutation_rate = 0.1
-generations = 1000
+# population_size = 100
+# mutation_rate = 0.1
+# generations = 1000
+# max_connected_players = 20
+# max_server_nr = 5
 
-#best_solution, best_fitnesses, average_fitnesses = genetic_algorithm(network, players, servers, population_size, mutation_rate, generations)
 
-# Plotting the fitness over generations
-#plt.plot(range(generations), best_fitnesses, label='Best Fitness')
-#plt.plot(range(generations), average_fitnesses, label='Average Fitness')
+# best_solution, best_fitnesses, average_fitnesses, not_used1, not_used2 = genetic_algorithm(network, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr)
+
+# # Plotting the fitness over generations
+# plt.plot(range(generations), best_fitnesses, label='Best Fitness')
+# plt.plot(range(generations), average_fitnesses, label='Average Fitness')
 # plt.xlabel('Generation')
 # plt.ylabel('Fitness')
 # plt.title('Fitness over Generations')
 # plt.legend()
-#plt.show()
+# plt.show()
