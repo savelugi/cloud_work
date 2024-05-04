@@ -7,7 +7,7 @@ from datetime import datetime
 from mutation import *
 
 #usa, germany, cost
-topology = "usa"
+topology = "cost"
 
 config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
 #config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
@@ -17,7 +17,8 @@ topology_file = get_topology_filename(topology, config)
 save_dir = get_save_dir(config)
 seed_value = 42
 
-debug_prints, optimize, save, plot, sum_model, ipd_model, gen_model = get_toggles_from_config(config)
+debug_prints, optimize, save, plot, active_models = get_toggles_from_config(config)
+
 
 # Adding server nodes
 network = NetworkGraph()
@@ -56,10 +57,11 @@ if optimize:
             network.connect_player_to_server(players, player, server_positions)
 
         
-# SUM        
+# ILP_SUM        
 ######################################################################################################################################################
 ######################################################################################################################################################
-        if sum_model:
+        if 'ilp_sum' in active_models:
+            modelname = 'ilp_sum'
             if debug_prints:
                 print_pattern()
 
@@ -79,16 +81,18 @@ if optimize:
 
             # Calculate metrics for the first Gurobi model
             if connected_players_info_model_sum is not None:
-                delay_metrics_model_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_sum, method_type='Delay sum method', debug_prints=debug_prints)                
-                delay_metrics_model_sum.append(round(timer.get_elapsed_time()))
+                delay_metrics_model_ilp_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_sum, method_type='ILP Delay sum method', debug_prints=debug_prints)                
 
                 qoe_conf_preferences = config['Weights']
                 qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_sum, server_to_player_delays, qoe_conf_preferences)
+                delay_metrics_model_ilp_sum.append(qoe_metrics)
+
+                delay_metrics_model_ilp_sum.append(round(timer.get_elapsed_time()))
             else:
-                delay_metrics_model_sum = [0, 0, 0, 0, 0, 0, 0, 0]
+                delay_metrics_model_ilp_sum = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_SUM_" + str(num_players)
+                dir_name = topology + "_ILP_SUM_" + str(num_players)
                 save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
                 folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
                 
@@ -99,21 +103,21 @@ if optimize:
                 full_save_path = os.path.join(folder_path, save_name)
                 network.save_graph(player_server_paths_model_sum, server_positions, connected_players_info_model_sum, full_save_path)
 
-            
-                sum_columns = pd.DataFrame([delay_metrics_model_sum], columns=[
-                    'average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
-                    'average_player_to_player_delay_sum', 'min_player_to_player_delay_sum', 'max_player_to_player_delay_sum', 
-                    'nr_of_selected_servers_sum', 'sim_time_sum'])
+                sum_columns = pd.DataFrame([delay_metrics_model_ilp_sum], columns=[
+                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
                 
                 df_row = pd.concat([df_row, sum_columns], axis=1)
 
         elif debug_prints:
-            print("Sum model is turned off at this optimization sequece!")
+            print(f"{modelname} model is turned off at this optimization sequece!")
 
 # IPD
 ######################################################################################################################################################
 ######################################################################################################################################################
-        if ipd_model:
+        if 'ilp_ipd' in active_models:
+            modelname = 'ilp_ipd'
             timer.start()
 
             connected_players_info_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
@@ -130,13 +134,18 @@ if optimize:
 
             # Calculate metrics for the second Gurobi model
             if connected_players_info_model_ipd is not None:
-                delay_metrics_model_ipd, server_to_player_delays = network.calculate_delays(connected_players_info_model_ipd, method_type='Interplayer delay method', debug_prints=debug_prints)
-                delay_metrics_model_ipd.append(timer.get_elapsed_time())
+                delay_metrics_model_ilp_ipd, server_to_player_delays = network.calculate_delays(connected_players_info_model_ipd, method_type='ILP Interplayer delay method', debug_prints=debug_prints)
+
+                qoe_conf_preferences = config['Weights']
+                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_ipd, server_to_player_delays, qoe_conf_preferences)
+                delay_metrics_model_ilp_ipd.append(qoe_metrics)
+
+                delay_metrics_model_ilp_ipd.append(timer.get_elapsed_time())
             else:
-                delay_metrics_model_ipd = [0, 0, 0, 0, 0, 0, 0, 0]
+                delay_metrics_model_ilp_ipd = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_IPD_" + str(num_players)
+                dir_name = topology + "_ILP_IPD_" + str(num_players)
                 save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
                 folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
                 
@@ -149,46 +158,53 @@ if optimize:
                 full_save_path = os.path.join(folder_path, save_name)
                 network.save_graph(player_server_paths_model_ipd, server_positions, connected_players_info_model_ipd, full_save_path)
 
-                ipd_columns = pd.DataFrame([delay_metrics_model_ipd], columns=[
-                    'average_player_to_server_delay_ipd', 'min_player_to_server_delay_ipd', 'max_player_to_server_delay_ipd',
-                    'average_player_to_player_delay_ipd', 'min_player_to_player_delay_ipd', 'max_player_to_player_delay_ipd',
-                    'nr_of_selected_servers_ipd', 'sim_time_ipd'])
+                ipd_columns = pd.DataFrame([delay_metrics_model_ilp_ipd], columns=[
+                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
                 
                 df_row = pd.concat([df_row, ipd_columns], axis=1)
                 
         elif debug_prints:
-            print("IPD model is turned off at this optimization sequece!")
+            print(f"{modelname} model is turned off at this optimization sequece!")
 
-# GENETIC
+# GENETIC SUM
 ######################################################################################################################################################
 ######################################################################################################################################################
 
-        if gen_model:
+        if 'gen_sum' in active_models:
+            modelname = 'gen_sum'
             timer.start()
 
-            best_solution, connected_players_info_model_gen, player_server_paths_model_gen = genetic_algorithm(
+            best_solution, connected_players_info_model_gen_sum, player_server_paths_model_gen_sum = genetic_algorithm(
                 network=network,
                 players=list(players),
                 servers=server_list,
                 population_size=len(players),
                 mutation_rate= 0.01,
-                generations= 2000,
+                generations= 1000,
                 max_connected_players=max_connected_players,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
-                tournament_size=50)
+                tournament_size=50,
+                fitness_method='sum')
             
             timer.stop()
             
             # Calculate metrics for the metaheuristic model
-            if connected_players_info_model_gen is not None:
-                delay_metrics_model_gen, server_to_player_delays = network.calculate_delays(connected_players_info_model_gen, method_type='Metaheuristic delay method', debug_prints=debug_prints)
-                delay_metrics_model_gen.append(timer.get_elapsed_time())
+            if connected_players_info_model_gen_sum is not None:
+                delay_metrics_model_gen_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_gen_sum, method_type='Metaheuristic sum delay method', debug_prints=debug_prints)
+
+                qoe_conf_preferences = config['Weights']
+                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_gen_sum, server_to_player_delays, qoe_conf_preferences)
+                delay_metrics_model_gen_sum.append(qoe_metrics)
+
+                delay_metrics_model_gen_sum.append(timer.get_elapsed_time())
             else:
-                delay_metrics_model_gen = [0, 0, 0, 0, 0, 0, 0, 0]
+                delay_metrics_model_gen_sum = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_GEN_" + str(num_players)
+                dir_name = topology + "_GEN_SUM_" + str(num_players)
                 save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
                 folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
                 
@@ -197,19 +213,78 @@ if optimize:
                     os.makedirs(folder_path)
                 
                 full_save_path = os.path.join(folder_path, save_name)
-                network.save_graph(player_server_paths_model_gen, server_positions, connected_players_info_model_gen, full_save_path)
+                network.save_graph(player_server_paths_model_gen_sum, server_positions, connected_players_info_model_gen_sum, full_save_path)
 
-                gen_columns = pd.DataFrame([delay_metrics_model_gen], columns=[
-                    'average_player_to_server_delay_gen', 'min_player_to_server_delay_gen', 'max_player_to_server_delay_gen',
-                    'average_player_to_player_delay_gen', 'min_player_to_player_delay_gen', 'max_player_to_player_delay_gen',
-                    'nr_of_selected_servers_gen', 'sim_time_gen'])
+                gen_sum_columns = pd.DataFrame([delay_metrics_model_gen_sum], columns=[
+                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
                 
-                df_row = pd.concat([df_row, gen_columns], axis=1)
+                df_row = pd.concat([df_row, gen_sum_columns], axis=1)
     
         elif debug_prints:
-           print("Genetic model is turned off at this optimization sequece!")
+           print(f"{modelname} model is turned off at this optimization sequece!")
+
+# GENETIC IPD
+######################################################################################################################################################
+######################################################################################################################################################
+
+        if 'gen_ipd' in active_models:
+            modelname = 'gen_ipd'
+            timer.start()
+
+            best_solution, connected_players_info_model_gen_ipd, player_server_paths_model_gen_ipd = genetic_algorithm(
+                network=network,
+                players=list(players),
+                servers=server_list,
+                population_size=len(players),
+                mutation_rate= 0.01,
+                generations= 1000,
+                max_connected_players=max_connected_players,
+                max_server_nr=nr_of_servers,
+                selection_strategy="rank_based",
+                tournament_size=50,
+                fitness_method='ipd')
+            
+            timer.stop()
+            
+            # Calculate metrics for the metaheuristic model
+            if connected_players_info_model_gen_ipd is not None:
+                delay_metrics_model_gen_ipd, server_to_player_delays = network.calculate_delays(connected_players_info_model_gen_ipd, method_type='Metaheuristic ipd delay method', debug_prints=debug_prints)
+                
+                qoe_conf_preferences = config['Weights']
+                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_gen_ipd, server_to_player_delays, qoe_conf_preferences)
+                delay_metrics_model_gen_ipd.append(qoe_metrics)
+
+                delay_metrics_model_gen_ipd.append(timer.get_elapsed_time())
+
+            else:
+                delay_metrics_model_gen = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+            if save:
+                dir_name = topology + "_GEN_IPD_" + str(num_players)
+                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
+                
+                # Check if the directory exists, if not, create it
+                if not os.path.exists(folder_path):
+                    os.makedirs(folder_path)
+                
+                full_save_path = os.path.join(folder_path, save_name)
+                network.save_graph(player_server_paths_model_gen_ipd, server_positions, connected_players_info_model_gen_ipd, full_save_path)
+
+                gen_ipd_columns = pd.DataFrame([delay_metrics_model_gen_ipd], columns=[
+                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
+                
+                df_row = pd.concat([df_row, gen_ipd_columns], axis=1)
+    
+        elif debug_prints:
+           print(f"{modelname} model is turned off at this optimization sequece!")
 
         df_results = pd.concat([df_results, df_row])
+
 
     if save:
         # Assuming df_results is your DataFrame
@@ -231,108 +306,43 @@ if optimize:
 ######################################################################################################################################################
 
 if plot:
-
-    # Assume df_results is your DataFrame containing the mentioned columns
     # Load data from CSV into df_results DataFrame
     if optimize:
-        df_results = pd.read_csv(latest_csv_dir)
+        df_results = pd.read_csv(latest_csv_dir, comment='#')
     else:
-        csv_file_name = "cost_100_20240501125820"
+        csv_file_name = "germany_100_20240504161640"
         try:
-            df_results = pd.read_csv(save_dir + csv_file_name+".csv")
+            df_results = pd.read_csv(save_dir + csv_file_name+".csv", comment='#')
         except FileNotFoundError:
             print("Check the filename in the print function!")
 
-    # Plotting average player-to-server delay for the methods
-    plt.figure(figsize=(10, 6))
-    if sum_model and ipd_model:
-        comp1 = "sum"
-        comp2 = "ipd"
-    elif sum_model and gen_model:
-        comp1 = "sum"
-        comp2 = "gen"
-    elif ipd_model and gen_model:
-        comp1 = "ipd"
-        comp2 = "gen"
-
-    plt.subplot(2, 1, 1)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'average_player_to_server_delay_{comp1}', y_mod2=f'average_player_to_server_delay_{comp2}',
-                      y_label='Avg. Player-to-Server Delay [ms]', title='Average Player-to-Server Delay Comparison')
-
-    plt.subplot(2, 1, 2)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'average_player_to_player_delay_{comp1}', y_mod2=f'average_player_to_player_delay_{comp2}',
-                      y_label='Avg. Player-to-Player Delay [ms]', title='Average Player-to-Player Delay Comparison')
-    plt.tight_layout()
-    
-    plt.figure(figsize=(10, 6))
-    plt.subplot(2, 1, 1)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'max_player_to_server_delay_{comp1}', y_mod2=f'max_player_to_server_delay_{comp2}',
-                      y_label='Max Player-to-Server Delay [ms]', title='Maximum Player-to-Server Delay Comparison')
-    
-    plt.subplot(2, 1, 2)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'max_player_to_player_delay_{comp1}', y_mod2=f'max_player_to_player_delay_{comp2}',
-                      y_label='Max Player-to-Player Delay [ms]', title='Maximum Player-to-Player Delay Comparison')
-    plt.tight_layout()
-    
-    plt.figure(figsize=(10, 6))
-    plt.subplot(2,1,1)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'min_player_to_server_delay_{comp1}', y_mod2=f'min_player_to_server_delay_{comp2}',
-                      y_label='Max Player-to-Server Delay [ms]', title='Minimum Player-to-Server Delay Comparison')
-
-    plt.subplot(2,1,2)
-    draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
-                      y_mod1=f'min_player_to_player_delay_{comp1}', y_mod2=f'min_player_to_player_delay_{comp2}',
-                      y_label='Max Player-to-Player Delay [ms]', title='Minimum Player-to-Player Delay Comparison')
-    plt.tight_layout()
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='average_player_to_server_delay_', y_label='Avg. Player-to-Server Delay [ms]',
+    #                   title='Average Player-to-Server Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='average_player_to_player_delay_', y_label='Avg. Player-to-Player Delay [ms]',
+    #                   title='Average Player-to-Player Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='max_player_to_server_delay_', y_label='Max. Player-to-Server Delay [ms]',
+    #                   title='Maximum Player-to-Server Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='max_player_to_player_delay_', y_label='Max. Player-to-Player Delay [ms]',
+    #                   title='Maximum Player-to-Player Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='min_player_to_server_delay_', y_label='Avg. Player-to-Server Delay [ms]',
+    #                   title='Minimum Player-to-Server Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='min_player_to_player_delay_', y_label='Avg. Player-to-Player Delay [ms]',
+    #                   title='Minimum Player-to-Player Delay Comparison')
+    # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+    #                   plot_type='qoe_score_', y_label='Simulation time [s]',
+    #                   title='QoE comparison', invert=False)
+    draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
+                      plot_type='sim_time_', y_label='Simulation time [s]',
+                      title='Simulation time comparison')
 
     plt.show()
 
-
-# print_plot_nr = None
-# if print_plot_nr is not None:
-#     #num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = param_combinations_usa[print_plot_nr-1]
-#     # Adding server nodes
-#     network = NetworkGraph()
-#     network.load_topology(topology_dir+"26_usa_scaled.gml")
-#     # Getting server positions
-#     server_positions = network.get_server_positions()
-
-#     print(network.get_max_server_to_server_delay(server_positions)[0])
-#     print(network.get_max_server_to_server_delay(server_positions)[1])
-
-#     players = generate_players(num_players, long_range, lat_range, seed_value)
-#     network.add_players(players)
-
-#     for player in players:
-#         network.connect_player_to_server(players, player, server_positions)
-
-#     connected_players_info_model_sum, selected_servers_model_sum, player_server_paths_model_sum = sum_delay_optimization(
-#         network=network, 
-#         server_positions=server_positions,
-#         players=players, 
-#         nr_of_servers=nr_of_servers,
-#         min_players_connected=min_players_connected, 
-#         max_connected_players=max_connected_players,
-#         max_allowed_delay=max_allowed_delay
-#     )
-#     calculate_delays(network, connected_players_info_model_sum, selected_servers_model_sum, method_type='Sum delay method')
-#     connected_players_info_model_ipd, selected_servers_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
-#         network=network,
-#         server_positions=server_positions,
-#         players=players,
-#         nr_of_servers=nr_of_servers,
-#         min_players_connected=min_players_connected,
-#         max_connected_players=max_connected_players,
-#         max_allowed_delay=max_allowed_delay
-#     )
-#     calculate_delays(network, connected_players_info_model_ipd, selected_servers_model_ipd, method_type='Interplayer delay method')
-#     # Preparing positions
-#     pos = {**server_positions, **players}
 
 # Drawing network decisions
 # visualization = Visualization(network)
@@ -378,7 +388,7 @@ if plot:
 # visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=False)
 # visualization.display_plots() 
 
-if True:
+if False:
     plt.figure(figsize=(10, 6))
     file_path = save_dir+"usa_IPD_100/"+"usa_IPD_100_9_6_20"+".gml"
     draw_graph_from_gml(file_path, 1, "(a) IPD method, 5 servers", show_edge_labels=False)

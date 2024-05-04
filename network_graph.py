@@ -134,7 +134,7 @@ class NetworkGraph:
         nx.write_gml(self.graph, save_name+".gml")
 
     def calculate_qoe_metrics(self, connected_players_info, server_to_player_delay_list, config_preferences):
-        player_score = {}
+        player_scores = 0
 
         ping_weight = float(config_preferences['ping_weight'])
         video_quality_weight = float(config_preferences['video_quality_weight'])
@@ -152,9 +152,9 @@ class NetworkGraph:
             else:
                 video_quality_diff_score = 1
 
-            player_score[player] = (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
+            player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
 
-        return player_score
+        return player_scores
         
     # Function to calculate interplayer delay metrics
     def calculate_delays(self, connected_players_info, method_type, debug_prints):

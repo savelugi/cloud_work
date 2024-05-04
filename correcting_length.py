@@ -36,7 +36,7 @@ def generate_link_properties(source, target):
     return bandwidth
 
 # Read the GML file and create a graph
-Graph = nx.read_gml("/Users/ebenbot/Documents/University/cloud_work/src/26_usa.gml")
+Graph = nx.read_gml("/Users/ebenbot/Documents/University/cloud_work/src/50_germany.gml")
 
 seed = 42
 
@@ -68,4 +68,4 @@ for u, v, data in Graph.edges(data=True):
 
 
 # Save the corrected graph back to a new GML file
-nx.write_gml(Graph, '26_usa_scaled.gml')
+nx.write_gml(Graph, '50_germany_scaled.gml')

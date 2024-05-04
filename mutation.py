@@ -7,43 +7,43 @@ from gurobi import *
 import numpy as np
 from functools import lru_cache
 
-# #usa, germany, cost
-topology = "cost"
+# # #usa, germany, cost
+# topology = "cost"
 
-#config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
-config_file = '/Users/ebenbot/Documents/University/cloud_work/config.ini'
+# #config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
+# config_file = '/Users/ebenbot/Documents/University/cloud_work/config.ini'
 
-config = read_configuration(config_file)
+# config = read_configuration(config_file)
 
-topology_file = get_topology_filename(topology, config)
-save_dir = get_save_dir(config)
-seed_value = 42
-
-
-
-debug_prints, optimize, save, plot, sum_model, ipd_model, gen_model = get_toggles_from_config(config)
-
-# Adding server nodes
-network = NetworkGraph()
-network.load_topology(topology_file)
-
-# Getting server positions
-servers = list(network.graph.nodes)
-server_positions = network.get_server_positions()
-
-
-long_range, lat_range = get_lat_long_range(topology)
-num_players = 100
-
-players = generate_players(num_players, long_range, lat_range, seed_value)
-network.add_players(players)
+# topology_file = get_topology_filename(topology, config)
+# save_dir = get_save_dir(config)
+# seed_value = 42
 
 
 
-for player in players:
-    network.connect_player_to_server(players, player, server_positions)
+# debug_prints, optimize, save, plot, active_models= get_toggles_from_config(config)
 
-players = list(players)
+# # Adding server nodes
+# network = NetworkGraph()
+# network.load_topology(topology_file)
+
+# # Getting server positions
+# servers = list(network.graph.nodes)
+# server_positions = network.get_server_positions()
+
+
+# long_range, lat_range = get_lat_long_range(topology)
+# num_players = 100
+
+# players = generate_players(num_players, long_range, lat_range, seed_value)
+# network.add_players(players)
+
+
+
+# for player in players:
+#     network.connect_player_to_server(players, player, server_positions)
+
+# players = list(players)
 
 
 def initial_population(players, servers, population_size):
@@ -292,7 +292,7 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
         offspring = []
         while len(offspring) < population_size - len(parents):
             parent1, parent2 = random.sample(parents, 2)
-            child1, child2 = crossover(parent1, parent2, method='multi_point')
+            child1, child2 = crossover(parent1, parent2, method='single_point')
             child1 = mutate(child1, mutation_rate, servers)
             child2 = mutate(child2, mutation_rate, servers)
 
@@ -321,29 +321,29 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
                 path = network.get_shortest_path(player, server_idx)
                 player_server_paths.append((player, server_idx, path))
 
-    return best_solution, best_fitnesses, average_fitnesses, connected_players_to_server, player_server_paths
-    #return best_solution, connected_players_to_server, player_server_paths
+    #return best_solution, best_fitnesses, average_fitnesses, connected_players_to_server, player_server_paths
+    return best_solution, connected_players_to_server, player_server_paths
 
-population_size = 200
-mutation_rate = 0.01
-generations = 1000
-max_connected_players = 20
-max_server_nr = 5
+# population_size = 200
+# mutation_rate = 0.01
+# generations = 1000
+# max_connected_players = 20
+# max_server_nr = 5
 
 
-best_solution, best_fitnesses, average_fitnesses, not_used1, not_used2 = genetic_algorithm(
-    network, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr,
-    selection_strategy="rank_based",
-    tournament_size=50,
-    fitness_method='ipd')
+# best_solution, best_fitnesses, average_fitnesses, not_used1, not_used2 = genetic_algorithm(
+#     network, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr,
+#     selection_strategy="rank_based",
+#     tournament_size=50,
+#     fitness_method='ipd')
 
-#Plotting the fitness over generations
-plt.plot(range(generations), best_fitnesses, label='Best Fitness')
-#print("Best fitness score:")
-#print(best_fitnesses[-1])
-plt.plot(range(generations), average_fitnesses, label='Average Fitness')
-plt.xlabel('Generation')
-plt.ylabel('Fitness')
-plt.title('Fitness over Generations')
-plt.legend()
-plt.show()
+# #Plotting the fitness over generations
+# plt.plot(range(generations), best_fitnesses, label='Best Fitness')
+# #print("Best fitness score:")
+# #print(best_fitnesses[-1])
+# plt.plot(range(generations), average_fitnesses, label='Average Fitness')
+# plt.xlabel('Generation')
+# plt.ylabel('Fitness')
+# plt.title('Fitness over Generations')
+# plt.legend()
+# plt.show()

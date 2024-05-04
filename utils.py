@@ -113,10 +113,16 @@ def get_toggles_from_config(config):
     optimize = config['Toggles'].getboolean('optimize')
     save = config['Toggles'].getboolean('save')
     plot = config['Toggles'].getboolean('plot')
-    sum_model = config['Toggles'].getboolean('sum_model')
-    ipd_model = config['Toggles'].getboolean('ipd_model')
-    gen_model = config['Toggles'].getboolean('gen_model')
-    return debug_prints, optimize, save, plot, sum_model, ipd_model, gen_model
+    active_models = []
+    if config['Toggles'].getboolean('ilp_sum_model'):
+        active_models.append('ilp_sum')
+    if config['Toggles'].getboolean('ilp_ipd_model'):
+        active_models.append('ilp_ipd')
+    if config['Toggles'].getboolean('gen_sum_model'):
+        active_models.append('gen_sum')
+    if config['Toggles'].getboolean('gen_ipd_model'):
+        active_models.append('gen_ipd')
+    return debug_prints, optimize, save, plot, active_models
 
 def read_parameters_from_config(topology, config):    
     if topology not in config:
@@ -132,13 +138,16 @@ def read_parameters_from_config(topology, config):
 def calculate_ping_score(actual_ping, wanted_ping):
     max_point = 100
     min_point = 0
-    max_ping = 1.5*wanted_ping
+    max_ping = 1.5 * wanted_ping
     if actual_ping <= wanted_ping:
         return max_point
     elif actual_ping > max_ping:
         return min_point
     else:
         return max_point - (actual_ping - wanted_ping) * (max_point / (max_ping - wanted_ping))
+    
+def calculate_video_score():
+    return None
 
 
 class Timer:
