@@ -7,10 +7,10 @@ from datetime import datetime
 from mutation import *
 
 #usa, germany, cost
-topology = "cost"
+topology = "usa"
 
-#config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
-config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
+config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
+#config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
 config = read_configuration(config_file)
 
 topology_file = get_topology_filename(topology, config)
@@ -71,7 +71,7 @@ if optimize:
                 players=players, 
                 nr_of_servers=nr_of_servers,
                 min_players_connected=min_players_connected, 
-                max_connected_players=max_connected_players,
+                max_connected_players=max_connected_players,              
                 max_allowed_delay=max_allowed_delay,
                 debug_prints=debug_prints)
 
@@ -171,10 +171,12 @@ if optimize:
                 players=list(players),
                 servers=server_list,
                 population_size=len(players),
-                mutation_rate= 0.1,
-                generations= 1000,
+                mutation_rate= 0.01,
+                generations= 2000,
                 max_connected_players=max_connected_players,
-                max_server_nr=nr_of_servers)
+                max_server_nr=nr_of_servers,
+                selection_strategy="rank_based",
+                tournament_size=50)
             
             timer.stop()
             
@@ -235,7 +237,7 @@ if plot:
     if optimize:
         df_results = pd.read_csv(latest_csv_dir)
     else:
-        csv_file_name = "cost_100_20240425145013"
+        csv_file_name = "cost_100_20240501125820"
         try:
             df_results = pd.read_csv(save_dir + csv_file_name+".csv")
         except FileNotFoundError:
@@ -258,7 +260,6 @@ if plot:
                       y_mod1=f'average_player_to_server_delay_{comp1}', y_mod2=f'average_player_to_server_delay_{comp2}',
                       y_label='Avg. Player-to-Server Delay [ms]', title='Average Player-to-Server Delay Comparison')
 
-    # Plotting average player-to-player delay for both methods
     plt.subplot(2, 1, 2)
     draw_compare_plot(df_results, x='nr_of_servers', x_label='Nr. of game servers', 
                       y_mod1=f'average_player_to_player_delay_{comp1}', y_mod2=f'average_player_to_player_delay_{comp2}',
@@ -379,10 +380,10 @@ if plot:
 
 if True:
     plt.figure(figsize=(10, 6))
-    file_path = save_dir+"cost_SUM_100/"+"cost_SUM_100_5_6_20"+".gml"
-    draw_graph_from_gml(file_path, 1, "(a) SUM method, 5 servers", show_edge_labels=False)
+    file_path = save_dir+"usa_IPD_100/"+"usa_IPD_100_9_6_20"+".gml"
+    draw_graph_from_gml(file_path, 1, "(a) IPD method, 5 servers", show_edge_labels=False)
 
-    file_path = save_dir+"cost_GEN_100/"+"cost_GEN_100_5_6_20"+".gml"
+    file_path = save_dir+"usa_GEN_100/"+"usa_GEN_100_9_6_20"+".gml"
     draw_graph_from_gml(file_path, 2, "(b) GEN method, n servers", show_edge_labels=False)
 
     # file_path = save_dir+"cost_IPD_100/"+"cost_IPD_100_5_6_20"+".gml"
