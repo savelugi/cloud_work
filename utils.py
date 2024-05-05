@@ -4,7 +4,8 @@ import pandas as pd
 import math
 import configparser
 
-def get_lat_long_range(topology):
+def get_lat_long_range(config):
+    topology = config['Topology']['topology']
     if topology == "usa":
         return (25, 45), (-123, -70)
     elif topology == "germany":
@@ -98,8 +99,9 @@ def read_configuration(config_file):
     config.read(config_file)
     return config
 
-def get_topology_filename(topology, config):
-    if topology in config['Scaled network topologies']:
+def get_topology_filename(config):
+    if config['Topology']['topology'] in config['Scaled network topologies']:
+        topology = config['Topology']['topology']
         return config['Settings']['topology_dir'] + config['Scaled network topologies'][topology]
     else:
         print("Scaled topology is not found in the config file!")
@@ -124,10 +126,8 @@ def get_toggles_from_config(config):
         active_models.append('gen_ipd')
     return debug_prints, optimize, save, plot, active_models
 
-def read_parameters_from_config(topology, config):    
-    if topology not in config:
-        print(f"'{topology}' not found in the {config} file.")
-        return []
+def read_parameters_from_config(config):
+    topology = config['Topology']['topology']
 
     param_combinations = []
     for key in config[topology]:

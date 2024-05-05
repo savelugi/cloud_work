@@ -13,27 +13,19 @@ config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
 #config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
 config = read_configuration(config_file)
 
-topology_file = get_topology_filename(topology, config)
 save_dir = get_save_dir(config)
 seed_value = 42
 
 debug_prints, optimize, save, plot, active_models = get_toggles_from_config(config)
 
-
-# Adding server nodes
-network = NetworkGraph()
-network.load_topology(topology_file)
-
-# Getting server positions
-server_positions = network.get_server_positions()
-server_list = list(network.graph.nodes)
+timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
 
 timer = Timer()
 if optimize:
     if save:
         df_results = pd.DataFrame()
     
-    param_combinations = read_parameters_from_config(topology, config)
+    param_combinations = read_parameters_from_config(config)
 
     # Main loop, going through all the parameters
     for params in param_combinations:
@@ -41,36 +33,22 @@ if optimize:
 
         if save:
             df_row = pd.DataFrame([list(params)], columns=['num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay'])
-
-        # Adding server nodes
-        network = NetworkGraph()
-        network.load_topology(topology_file)
-
-        # Getting server positions
-        server_positions = network.get_server_positions()
-
-        long_range, lat_range = get_lat_long_range(topology)
-        players = generate_players(num_players, long_range, lat_range, seed_value)
-        network.add_players(players)
-
-        for player in players:
-            network.connect_player_to_server(players, player, server_positions)
-
         
 # ILP_SUM        
 ######################################################################################################################################################
 ######################################################################################################################################################
+        modelname = 'ilp_sum'
         if 'ilp_sum' in active_models:
-            modelname = 'ilp_sum'
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
             if debug_prints:
                 print_pattern()
 
             timer.start()
 
-            connected_players_info_model_sum, player_server_paths_model_sum = sum_delay_optimization(
+            optimization_has_run = sum_delay_optimization(
                 network=network, 
-                server_positions=server_positions,
-                players=players, 
+                server_positions=network.server_positions,
+                players=network.players, 
                 nr_of_servers=nr_of_servers,
                 min_players_connected=min_players_connected, 
                 max_connected_players=max_connected_players,              
@@ -80,30 +58,18 @@ if optimize:
             timer.stop()   
 
             # Calculate metrics for the first Gurobi model
-            if connected_players_info_model_sum is not None:
-                delay_metrics_model_ilp_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_sum, method_type='ILP Delay sum method', debug_prints=debug_prints)                
+            if optimization_has_run:
+                network.calculate_delays(method_type='ILP Delay sum method', debug_prints=debug_prints)                
+                network.calculate_qoe_metrics()
 
-                qoe_conf_preferences = config['Weights']
-                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_sum, server_to_player_delays, qoe_conf_preferences)
-                delay_metrics_model_ilp_sum.append(qoe_metrics)
-
-                delay_metrics_model_ilp_sum.append(round(timer.get_elapsed_time()))
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
-                delay_metrics_model_ilp_sum = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_ILP_SUM_" + str(num_players)
-                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-                
-                # Check if the directory exists, if not, create it
-                if not os.path.exists(folder_path):
-                    os.makedirs(folder_path)
-                
-                full_save_path = os.path.join(folder_path, save_name)
-                network.save_graph(player_server_paths_model_sum, server_positions, connected_players_info_model_sum, full_save_path)
+                network.save_graph(timestamp, params)
 
-                sum_columns = pd.DataFrame([delay_metrics_model_ilp_sum], columns=[
+                sum_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
                     f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
                     f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
@@ -116,14 +82,15 @@ if optimize:
 # IPD
 ######################################################################################################################################################
 ######################################################################################################################################################
+        modelname = 'ilp_ipd'
         if 'ilp_ipd' in active_models:
-            modelname = 'ilp_ipd'
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
             timer.start()
 
-            connected_players_info_model_ipd, player_server_paths_model_ipd = interplayer_delay_optimization(
+            optimization_has_run = interplayer_delay_optimization(
                 network=network,
-                server_positions=server_positions,
-                players=players,
+                server_positions=network.server_positions,
+                players=network.players,
                 nr_of_servers=nr_of_servers,
                 min_players_connected=min_players_connected,
                 max_connected_players=max_connected_players,
@@ -133,32 +100,18 @@ if optimize:
             timer.stop()
 
             # Calculate metrics for the second Gurobi model
-            if connected_players_info_model_ipd is not None:
-                delay_metrics_model_ilp_ipd, server_to_player_delays = network.calculate_delays(connected_players_info_model_ipd, method_type='ILP Interplayer delay method', debug_prints=debug_prints)
+            if optimization_has_run:
+                network.calculate_delays(method_type='ILP Interplayer delay method', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
 
-                qoe_conf_preferences = config['Weights']
-                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_ipd, server_to_player_delays, qoe_conf_preferences)
-                delay_metrics_model_ilp_ipd.append(qoe_metrics)
-
-                delay_metrics_model_ilp_ipd.append(timer.get_elapsed_time())
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
-                delay_metrics_model_ilp_ipd = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_ILP_IPD_" + str(num_players)
-                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-                
+                network.save_graph(timestamp, params)
 
-                # Check if the directory exists, if not, create it
-                if not os.path.exists(folder_path):
-                    os.makedirs(folder_path)
-                
-                
-                full_save_path = os.path.join(folder_path, save_name)
-                network.save_graph(player_server_paths_model_ipd, server_positions, connected_players_info_model_ipd, full_save_path)
-
-                ipd_columns = pd.DataFrame([delay_metrics_model_ilp_ipd], columns=[
+                ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
                     f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
                     f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
@@ -171,16 +124,16 @@ if optimize:
 # GENETIC SUM
 ######################################################################################################################################################
 ######################################################################################################################################################
-
+        modelname = 'gen_sum'
         if 'gen_sum' in active_models:
-            modelname = 'gen_sum'
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
             timer.start()
 
-            best_solution, connected_players_info_model_gen_sum, player_server_paths_model_gen_sum = genetic_algorithm(
+            optimization_has_run = genetic_algorithm(
                 network=network,
-                players=list(players),
-                servers=server_list,
-                population_size=len(players),
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
                 mutation_rate= 0.01,
                 generations= 1000,
                 max_connected_players=max_connected_players,
@@ -192,30 +145,18 @@ if optimize:
             timer.stop()
             
             # Calculate metrics for the metaheuristic model
-            if connected_players_info_model_gen_sum is not None:
-                delay_metrics_model_gen_sum, server_to_player_delays = network.calculate_delays(connected_players_info_model_gen_sum, method_type='Metaheuristic sum delay method', debug_prints=debug_prints)
+            if optimization_has_run:
+                network.calculate_delays(method_type='Metaheuristic sum delay method', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
 
-                qoe_conf_preferences = config['Weights']
-                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_gen_sum, server_to_player_delays, qoe_conf_preferences)
-                delay_metrics_model_gen_sum.append(qoe_metrics)
-
-                delay_metrics_model_gen_sum.append(timer.get_elapsed_time())
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
-                delay_metrics_model_gen_sum = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_GEN_SUM_" + str(num_players)
-                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-                
-                # Check if the directory exists, if not, create it
-                if not os.path.exists(folder_path):
-                    os.makedirs(folder_path)
-                
-                full_save_path = os.path.join(folder_path, save_name)
-                network.save_graph(player_server_paths_model_gen_sum, server_positions, connected_players_info_model_gen_sum, full_save_path)
+                network.save_graph(timestamp, params)
 
-                gen_sum_columns = pd.DataFrame([delay_metrics_model_gen_sum], columns=[
+                gen_sum_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
                     f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
                     f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
@@ -228,16 +169,17 @@ if optimize:
 # GENETIC IPD
 ######################################################################################################################################################
 ######################################################################################################################################################
-
+        modelname = 'gen_ipd'
         if 'gen_ipd' in active_models:
-            modelname = 'gen_ipd'
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+
             timer.start()
 
-            best_solution, connected_players_info_model_gen_ipd, player_server_paths_model_gen_ipd = genetic_algorithm(
+            optimization_has_run = genetic_algorithm(
                 network=network,
-                players=list(players),
-                servers=server_list,
-                population_size=len(players),
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
                 mutation_rate= 0.01,
                 generations= 1000,
                 max_connected_players=max_connected_players,
@@ -249,31 +191,18 @@ if optimize:
             timer.stop()
             
             # Calculate metrics for the metaheuristic model
-            if connected_players_info_model_gen_ipd is not None:
-                delay_metrics_model_gen_ipd, server_to_player_delays = network.calculate_delays(connected_players_info_model_gen_ipd, method_type='Metaheuristic ipd delay method', debug_prints=debug_prints)
-                
-                qoe_conf_preferences = config['Weights']
-                qoe_metrics = network.calculate_qoe_metrics(connected_players_info_model_gen_ipd, server_to_player_delays, qoe_conf_preferences)
-                delay_metrics_model_gen_ipd.append(qoe_metrics)
+            if optimization_has_run:
+                network.calculate_delays(method_type='Metaheuristic ipd delay method', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
 
-                delay_metrics_model_gen_ipd.append(timer.get_elapsed_time())
-
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
-                delay_metrics_model_gen = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                dir_name = topology + "_GEN_IPD_" + str(num_players)
-                save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
-                folder_path = os.path.join(save_dir, dir_name)  # Assuming you want to create the folder in the current directory
-                
-                # Check if the directory exists, if not, create it
-                if not os.path.exists(folder_path):
-                    os.makedirs(folder_path)
-                
-                full_save_path = os.path.join(folder_path, save_name)
-                network.save_graph(player_server_paths_model_gen_ipd, server_positions, connected_players_info_model_gen_ipd, full_save_path)
+                network.save_graph(timestamp, params)
 
-                gen_ipd_columns = pd.DataFrame([delay_metrics_model_gen_ipd], columns=[
+                gen_ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
                     f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
                     f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
@@ -294,8 +223,8 @@ if optimize:
         print(df_row)
 
         # Save the DataFrame to a CSV file
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
-        csv = save_dir+topology+"_"+str(num_players)+"_"+str(timestamp)+".csv"
+        save_path = save_dir + str(timestamp) + "/"
+        csv = save_path+topology+"_"+str(num_players)+"_"+str(timestamp)+".csv"
         latest_csv_dir = csv
         df_results.to_csv(csv, index=False)
 

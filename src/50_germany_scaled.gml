@@ -9,6 +9,7 @@ graph [
       cpu 32
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -21,6 +22,7 @@ graph [
       cpu 64
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -33,6 +35,7 @@ graph [
       cpu 32
       memory 8
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -45,6 +48,7 @@ graph [
       cpu 16
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -57,6 +61,7 @@ graph [
       cpu 128
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -69,6 +74,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -81,6 +87,7 @@ graph [
       cpu 8
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -93,6 +100,7 @@ graph [
       cpu 64
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -105,6 +113,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -117,6 +126,7 @@ graph [
       cpu 48
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -129,6 +139,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -141,6 +152,7 @@ graph [
       cpu 128
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -153,6 +165,7 @@ graph [
       cpu 128
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -165,6 +178,7 @@ graph [
       cpu 48
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -177,6 +191,7 @@ graph [
       cpu 128
       memory 128
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -189,6 +204,7 @@ graph [
       cpu 64
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -201,6 +217,7 @@ graph [
       cpu 48
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -213,6 +230,7 @@ graph [
       cpu 32
       memory 256
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -225,6 +243,7 @@ graph [
       cpu 16
       memory 16
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -237,6 +256,7 @@ graph [
       cpu 8
       memory 16
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -249,6 +269,7 @@ graph [
       cpu 32
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -261,6 +282,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -273,6 +295,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -285,6 +308,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -297,6 +321,7 @@ graph [
       cpu 64
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -309,6 +334,7 @@ graph [
       cpu 32
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -321,6 +347,7 @@ graph [
       cpu 32
       memory 8
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -333,6 +360,7 @@ graph [
       cpu 32
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -345,6 +373,7 @@ graph [
       cpu 64
       memory 256
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -357,6 +386,7 @@ graph [
       cpu 32
       memory 8
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -369,6 +399,7 @@ graph [
       cpu 48
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -381,6 +412,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -393,6 +425,7 @@ graph [
       cpu 64
       memory 32
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -405,6 +438,7 @@ graph [
       cpu 32
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -417,6 +451,7 @@ graph [
       cpu 16
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -429,6 +464,7 @@ graph [
       cpu 16
       memory 16
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -441,6 +477,7 @@ graph [
       cpu 32
       memory 128
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -453,6 +490,7 @@ graph [
       cpu 128
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -465,6 +503,7 @@ graph [
       cpu 16
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -477,6 +516,7 @@ graph [
       cpu 16
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -489,6 +529,7 @@ graph [
       cpu 128
       memory 128
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -501,6 +542,7 @@ graph [
       cpu 16
       memory 8
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -513,6 +555,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -525,6 +568,7 @@ graph [
       cpu 32
       memory 128
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -537,6 +581,7 @@ graph [
       cpu 64
       memory 32
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -549,6 +594,7 @@ graph [
       cpu 48
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -561,6 +607,7 @@ graph [
       cpu 8
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -573,6 +620,7 @@ graph [
       cpu 64
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -585,6 +633,7 @@ graph [
       cpu 32
       memory 256
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -597,6 +646,7 @@ graph [
       cpu 48
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   edge [

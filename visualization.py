@@ -109,7 +109,7 @@ class Visualization:
     def display_plots(self):
         plt.show()
 
-def draw_graph_from_gml(file_path, nr, title, show_edge_labels):
+def draw_graph_from_gml(file_path, nr, title, show_edge_labels=False):
     # Read the graph from the GML file
     graph = nx.read_gml(file_path)
 

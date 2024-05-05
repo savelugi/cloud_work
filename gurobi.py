@@ -68,6 +68,10 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
                 for player in players:
                     if connected_players[(player, server_idx)].x > 0.5:
                         connected_players_to_server.append(player)
+
+                        network.graph.nodes[server_idx]['server']['game_server'] = 1
+                        network.graph.nodes[player]['connected_to_server'] = server_idx
+
                 connected_players_info_model_1[server_idx] = connected_players_to_server
 
         if debug_prints:
@@ -83,9 +87,12 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
                 # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
-        return None, None
+        return False
 
-    return connected_players_info_model_1, player_server_paths_model_1
+    network.connected_players_info = connected_players_info_model_1
+    network.player_server_paths = player_server_paths_model_1
+
+    return True
 
 def interplayer_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, debug_prints):
     # Create a new Gurobi model
@@ -168,6 +175,9 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
                 for player in players:
                     if connected_players[(player, server_idx)].x > 0.5:
                         connected_players_to_server.append(player)
+                        network.graph.nodes[server_idx]['server']['game_server'] = 1
+                        network.graph.nodes[player]['connected_to_server'] = server_idx
+
                 connected_players_info_model_2[server_idx] = connected_players_to_server
 
         if debug_prints:
@@ -183,9 +193,12 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
                 # print(f"To server {server_idx} no players are connected")
     else:
         print("No optimal solution found.")
-        return None, None
+        return False
 
-    return connected_players_info_model_2, player_server_paths_model_2
+    network.connected_players_info = connected_players_info_model_2
+    network.player_server_paths = player_server_paths_model_2
+
+    return True
 
 def run_optimization(network, server_positions, players, nr_of_servers, max_connected_players, max_allowed_delay):
     connected_players_info_sum, selected_servers_sum, _ = sum_delay_optimization(

@@ -1,10 +1,38 @@
 import networkx as nx
+import os
 from utils import *
 
 class NetworkGraph:
-    def __init__(self):
-        self.graph = nx.Graph()
+    def __init__(self, modelname="", config=None, num_players=0):
+        if config is None:
+            self.graph = nx.Graph()
+        else:
+            self.config = config
+            topology_file = get_topology_filename(config)
+            self.graph = nx.read_gml(topology_file)
+            self.server_positions = self.get_server_positions()
+            self._only_servers = list(self.graph.nodes)
+
+            ranges = get_lat_long_range(config)
+            if ranges is not None:
+                self.long_range, self.lat_range = ranges
+            else:
+                print("Error: Unsupported topology")        
+            if num_players > 0:
+                self.num_players = num_players
+                self.players = generate_players(num_players)
+                self.add_players_to_graph(self.players)
+
+        self.modelname = modelname
+
         self.delay_cache = {}  # Initialize an empty cache
+        self.connected_players_info = {}
+        self.player_server_paths = []
+
+        self.delay_metrics = []
+        self.server_to_player_delays = []
+
+        self.best_solution = []
 
     def load_topology(self, topology_dir):
         self.graph =  nx.read_gml(topology_dir)
@@ -20,7 +48,7 @@ class NetworkGraph:
                 server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
         return server_positions
     
-    def add_players(self, nodes):
+    def add_players_to_graph(self, nodes):
         for node_name, node_info in nodes.items():
             node_parameters = {
                 'Longitude': node_info['Longitude'],
@@ -28,9 +56,13 @@ class NetworkGraph:
                 'device_type': node_info['device_type'],
                 'game': node_info['game'],
                 'ping_preference': node_info['ping_preference'],
-                'video_quality_preference': node_info['video_quality_preference']
+                'video_quality_preference': node_info['video_quality_preference'],
+                'connected_to_server': -1
             }
             self.graph.add_node(node_name, **node_parameters)
+
+        for node in nodes:
+            self.connect_player_to_server(nodes, node, self.server_positions)
 
     
     def connect_player_to_server(self, players, player_position, server_positions):
@@ -108,20 +140,37 @@ class NetworkGraph:
                         between = (server1, server2)
         return [max_delay, between]
     
-    def save_graph(self, player_server_paths, servers, connected_players_info, save_name):
+    def save_graph(self, save_name, params):
+        save_dir = self.config['Settings']['save_dir']
+        topology = self.config['Topology']['topology']
+
+        save_path = save_dir + save_name + "/"
+
+        num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = params
+
+        dir_name = topology + self.modelname + str(num_players)
+        save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
+        folder_path = os.path.join(save_path, dir_name)  # Assuming you want to create the folder in the current directory
+        
+        # Check if the directory exists, if not, create it
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        
+        full_save_path = os.path.join(folder_path, save_name)
+
         selected_servers = []
-        for server_idx, connected_players_list in connected_players_info.items():
+        for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
                 selected_servers.append(server_idx)
 
         # Add node colors and edge colors as attributes
-        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in servers else 'g' for node in self.graph.nodes()}
+        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'g' for node in self.graph.nodes()}
         
         # Initialize edge colors
         edge_colors = {edge: 'black' for edge in self.graph.edges()}
 
         # Set edge colors to red for edges in player+server_paths
-        for _, _, path in player_server_paths:
+        for _, _, path in self.player_server_paths:
             edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
             for edge in edges:
                 edge_colors[edge] = 'red'
@@ -131,16 +180,16 @@ class NetworkGraph:
         nx.set_edge_attributes(self.graph, edge_colors, 'color')
 
         # Save the graph to a GML file
-        nx.write_gml(self.graph, save_name+".gml")
+        nx.write_gml(self.graph, full_save_path+".gml")
 
-    def calculate_qoe_metrics(self, connected_players_info, server_to_player_delay_list, config_preferences):
+    def calculate_qoe_metrics(self):
         player_scores = 0
-
+        config_preferences = self.config['Weights']
         ping_weight = float(config_preferences['ping_weight'])
         video_quality_weight = float(config_preferences['video_quality_weight'])
 
 
-        for player, server, ping_act in server_to_player_delay_list:
+        for player, server, ping_act in self.server_to_player_delays:
             ping_pref = self.graph.nodes[player]['ping_preference']
             ping_diff_score = calculate_ping_score(ping_act, ping_pref)
 
@@ -154,17 +203,18 @@ class NetworkGraph:
 
             player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
 
-        return player_scores
+        self.delay_metrics.append(player_scores)
+        return True
         
     # Function to calculate interplayer delay metrics
-    def calculate_delays(self, connected_players_info, method_type, debug_prints):
+    def calculate_delays(self, method_type, debug_prints):
         selected_servers = []
         server_to_player_delays = []
         player_to_player_delays = []
         min_value = (0, 0, float('inf'))
         max_value = (0, 0, 0)
 
-        for server_idx, connected_players_list in connected_players_info.items():
+        for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
                 for player in connected_players_list:
                     server_to_player_delay = self.get_shortest_path_delay(player, server_idx)
@@ -208,5 +258,36 @@ class NetworkGraph:
             print(f"Maximum interplayer delay: {max_value}")
             print(f"Minimum interplayer delay: {min_value}")
 
-        return [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
-            average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay, len(selected_servers)], server_to_player_delays
+        self.delay_metrics = [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
+                              average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay,
+                              len(selected_servers)]
+        self.server_to_player_delays = server_to_player_delays
+
+        return True
+        
+    def calculate_player_server_connections_from_gml(self):
+        connected_players_to_server = {}
+        player_server_paths = []
+
+        for node in self.graph.nodes():
+            if 'server' in self.graph.nodes[node]:
+                server_data = self.graph.nodes[node]['server']
+                if 'game_server' in server_data and server_data['game_server'] == 1:
+                    if node not in connected_players_to_server:
+                        connected_players_to_server[node] = []
+        
+        for node_id, node_attrs in self.graph.nodes(data=True):
+            if 'connected_to_server' in node_attrs:
+                connected_server_id = node_attrs['connected_to_server']
+                connected_players_to_server[connected_server_id].append(node_id)
+
+
+        for server_idx, connected_players_list in connected_players_to_server.items():
+            if connected_players_list:
+                for player in connected_players_list:
+                    path = self.get_shortest_path(player, server_idx)
+                    player_server_paths.append((player, server_idx, path))
+
+        self.connected_players_info = connected_players_to_server
+        self.player_server_paths = player_server_paths
+        return True

@@ -16,7 +16,7 @@ def generate_server_properties(seed=None):
         cpu = random.choice([8, 16, 32])  # Random CPU value
         memory = random.choice([8, 16, 32, 64])  # Random memory value
         gpu = False  # Random GPU presence: True or False
-    return {'type': server_type, 'cpu': cpu, 'memory': memory, 'gpu': gpu}
+    return {'type': server_type, 'cpu': cpu, 'memory': memory, 'gpu': gpu, 'game_server': -1}
 
 def generate_link_properties(source, target):
     bandwidth = None

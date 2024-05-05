@@ -7,7 +7,7 @@ from gurobi import *
 import numpy as np
 from functools import lru_cache
 
-# # #usa, germany, cost
+# #usa, germany, cost
 # topology = "cost"
 
 # #config_file = r"C:\Users\bbenc\OneDrive\Documents\aGraph\cloud_work\config.ini"
@@ -313,6 +313,9 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
              connected_players_to_server[server_index] = []
 
         connected_players_to_server[server_index].append(f"P{player_index+1}")
+        network.graph.nodes[str(server_index)]['server']['game_server'] = 1
+        network.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
+
 
     player_server_paths = []
     for server_idx, connected_players_list in connected_players_to_server.items():
@@ -322,11 +325,15 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
                 player_server_paths.append((player, server_idx, path))
 
     #return best_solution, best_fitnesses, average_fitnesses, connected_players_to_server, player_server_paths
-    return best_solution, connected_players_to_server, player_server_paths
+    network.connected_players_info = connected_players_to_server
+    network.player_server_paths = player_server_paths
+    network.best_solution = best_solution
 
-# population_size = 200
+    return True
+
+# population_size = 100
 # mutation_rate = 0.01
-# generations = 1000
+# generations = 100
 # max_connected_players = 20
 # max_server_nr = 5
 
@@ -335,7 +342,7 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 #     network, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr,
 #     selection_strategy="rank_based",
 #     tournament_size=50,
-#     fitness_method='ipd')
+#     fitness_method='sum')
 
 # #Plotting the fitness over generations
 # plt.plot(range(generations), best_fitnesses, label='Best Fitness')
