@@ -14,7 +14,7 @@ config_file = "/Users/ebenbot/Documents/University/cloud_work/config.ini"
 config = read_configuration(config_file)
 
 save_dir = get_save_dir(config)
-seed_value = 42
+#seed_value = 42
 
 debug_prints, optimize, save, plot, active_models = get_toggles_from_config(config)
 
@@ -67,7 +67,7 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                network.save_graph(timestamp, params)
+                save_path = network.save_graph(timestamp, params)
 
                 sum_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
@@ -109,7 +109,7 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                network.save_graph(timestamp, params)
+                save_path = network.save_graph(timestamp, params)
 
                 ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
@@ -154,7 +154,7 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                network.save_graph(timestamp, params)
+                save_path = network.save_graph(timestamp, params)
 
                 gen_sum_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
@@ -200,7 +200,7 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                network.save_graph(timestamp, params)
+                save_path = network.save_graph(timestamp, params)
 
                 gen_ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
                     f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
@@ -212,8 +212,53 @@ if optimize:
         elif debug_prints:
            print(f"{modelname} model is turned off at this optimization sequece!")
 
-        df_results = pd.concat([df_results, df_row])
+# GENETIC COMBINED
+######################################################################################################################################################
+######################################################################################################################################################
+        modelname = 'gen_combined'
+        if 'gen_combined' in active_models:
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
 
+            timer.start()
+
+            optimization_has_run = genetic_algorithm(
+                network=network,
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
+                mutation_rate= 0.01,
+                generations= 1000,
+                max_connected_players=max_connected_players,
+                max_server_nr=nr_of_servers,
+                selection_strategy="rank_based",
+                tournament_size=50,
+                fitness_method='sum_ipd')
+            
+            timer.stop()
+            
+            # Calculate metrics for the metaheuristic model
+            if optimization_has_run:
+                network.calculate_delays(method_type='Metaheuristic sum_ipd delay method', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
+
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
+            else:
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+            if save:
+                save_path = network.save_graph(timestamp, params)
+
+                gen_combined_columns = pd.DataFrame([network.delay_metrics], columns=[
+                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
+                
+                df_row = pd.concat([df_row, gen_combined_columns], axis=1)
+    
+        elif debug_prints:
+           print(f"{modelname} model is turned off at this optimization sequece!")
+
+        df_results = pd.concat([df_results, df_row])
 
     if save:
         # Assuming df_results is your DataFrame
@@ -223,7 +268,6 @@ if optimize:
         print(df_row)
 
         # Save the DataFrame to a CSV file
-        save_path = save_dir + str(timestamp) + "/"
         csv = save_path+topology+"_"+str(num_players)+"_"+str(timestamp)+".csv"
         latest_csv_dir = csv
         df_results.to_csv(csv, index=False)

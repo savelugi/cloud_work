@@ -49,6 +49,7 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
             'ping_preference': ping_preference,
             'video_quality_preference': video_quality_preference
         }
+
     return players
 
 
@@ -124,6 +125,8 @@ def get_toggles_from_config(config):
         active_models.append('gen_sum')
     if config['Toggles'].getboolean('gen_ipd_model'):
         active_models.append('gen_ipd')
+    if config['Toggles'].getboolean('gen_combined_model'):
+        active_models.append('gen_combined')
     return debug_prints, optimize, save, plot, active_models
 
 def read_parameters_from_config(config):

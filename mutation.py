@@ -137,14 +137,64 @@ def fitness_ipd(network: NetworkGraph, chromosome, players):
 
     return max_value
 
+@lru_cache(maxsize=None)
+def fitness_sum_ipd(network: NetworkGraph, chromosome, players):
+    sum_player_server_delay = 0
+    min_sum_delay = float('inf')  
+    max_sum_delay = 0
+
+    for i, server in enumerate(chromosome):
+        player = players[i]
+        delay = network.get_shortest_path_delay(player, server)
+        sum_player_server_delay += delay
+        
+        if delay < min_sum_delay:
+            min_sum_delay = delay
+        if delay > max_sum_delay:
+            max_sum_delay = delay
+
+    normalized_sum_delay = (sum_player_server_delay - min_sum_delay) / (max_sum_delay - min_sum_delay) if max_sum_delay != min_sum_delay else 0
+
+    max_player_player_delay = 0
+    min_interplayer_delay = float('inf')
+    max_interplayer_delay = 0
+
+    connected_players_to_server = {}  
+    for player_index, server_index in enumerate(chromosome):
+        if server_index not in connected_players_to_server:
+            connected_players_to_server[server_index] = []
+        connected_players_to_server[server_index].append(f"P{player_index+1}")
+
+    for server, players_list in connected_players_to_server.items():
+        for player1 in players_list:
+            for player2 in players_list:
+                if player1 != player2:
+                    delay = network.get_shortest_path_delay(player1, server) + network.get_shortest_path_delay(player2, server)
+
+                    if delay < min_interplayer_delay:
+                        min_interplayer_delay = delay
+                    if delay > max_interplayer_delay:
+                        max_interplayer_delay = delay
+
+                    if delay > max_player_player_delay:
+                        max_player_player_delay = delay
+
+    normalized_interplayer_delay = (max_player_player_delay - min_interplayer_delay) / (max_interplayer_delay - min_interplayer_delay) if max_interplayer_delay != min_interplayer_delay else 0
+
+    # Visszaadjuk a súlyozott összfitnesszt
+    return 0.7 * sum_player_server_delay +  13 * 0.3 *max_player_player_delay
+
+
 def fitness(network: NetworkGraph, chromosome, players, method):
     # Az általános függvény, amely dönti el, hogy melyik fitness függvényt kell használni
     if method == 'ipd':
         return fitness_ipd(network, chromosome, players)
     elif method == 'sum':
         return fitness_sum(network, chromosome, players)
+    elif method == 'sum_ipd':
+        return fitness_sum_ipd(network, chromosome, players)
     else:
-        raise ValueError("Invalid fitness method. Choose from 'sum', 'ipd'.")
+        raise ValueError("Invalid fitness method. Choose from 'sum', 'ipd', 'sum_ipd'.")
 
 def single_point_crossover(parent1, parent2):
     crossover_point = random.randint(1, len(parent1) - 1)

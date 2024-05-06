@@ -6,7 +6,9 @@ class NetworkGraph:
     def __init__(self, modelname="", config=None, num_players=0):
         if config is None:
             self.graph = nx.Graph()
+            self.server_positions = self.get_server_positions()
         else:
+            self.seed = int(config['Weights']['seed'])
             self.config = config
             topology_file = get_topology_filename(config)
             self.graph = nx.read_gml(topology_file)
@@ -20,7 +22,7 @@ class NetworkGraph:
                 print("Error: Unsupported topology")        
             if num_players > 0:
                 self.num_players = num_players
-                self.players = generate_players(num_players)
+                self.players = generate_players(num_players, self.long_range, self.lat_range, self.seed)
                 self.add_players_to_graph(self.players)
 
         self.modelname = modelname
@@ -47,6 +49,18 @@ class NetworkGraph:
                 longitude = float(node_data['Longitude'])
                 server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
         return server_positions
+    
+    # def get_players(self):
+    #     player_positions = []
+    #     for node in self.graph.nodes(data=True):
+    #         node_id = node[0]
+    #         node_data = node[1]
+    #         if 'connected_to_server' in node_data:
+    #             player_positions.append() = float(node_data['Latitude'])
+    #             longitude = float(node_data['Longitude'])
+    #             server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
+    #     return server_positions
+
     
     def add_players_to_graph(self, nodes):
         for node_name, node_info in nodes.items():
@@ -144,11 +158,11 @@ class NetworkGraph:
         save_dir = self.config['Settings']['save_dir']
         topology = self.config['Topology']['topology']
 
-        save_path = save_dir + save_name + "/"
+        save_path = save_dir + save_name + '_' + topology + "/"
 
         num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = params
 
-        dir_name = topology + self.modelname + str(num_players)
+        dir_name = topology + '_' + self.modelname + '_' + str(num_players)
         save_name = dir_name + "_" + str(nr_of_servers) + "_" + str(min_players_connected) + "_" + str(max_connected_players)
         folder_path = os.path.join(save_path, dir_name)  # Assuming you want to create the folder in the current directory
         
@@ -182,6 +196,8 @@ class NetworkGraph:
         # Save the graph to a GML file
         nx.write_gml(self.graph, full_save_path+".gml")
 
+        return save_path
+
     def calculate_qoe_metrics(self):
         player_scores = 0
         config_preferences = self.config['Weights']
@@ -213,6 +229,9 @@ class NetworkGraph:
         player_to_player_delays = []
         min_value = (0, 0, float('inf'))
         max_value = (0, 0, 0)
+        PLAYER_LOC = 1
+        SERVER_LOC = 2
+        DELAY_LOC = 3
 
         for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
@@ -229,13 +248,12 @@ class NetworkGraph:
                 if player_1 != player_2:
                     if server_1 == server_2:
                         inter_player_delay = delay_1 + delay_2
+                        player_to_player_delays.append(inter_player_delay)
 
-                    player_to_player_delays.append(inter_player_delay)
-
-                    if inter_player_delay < min_value[2]:
-                        min_value = (player_1, player_2, inter_player_delay)
-                    if inter_player_delay > max_value[2]:
-                        max_value = (player_1, player_2, inter_player_delay)
+                        if inter_player_delay < min_value[SERVER_LOC]:
+                            min_value = (player_1, player_2, inter_player_delay)
+                        if inter_player_delay > max_value[SERVER_LOC]:
+                            max_value = (player_1, player_2, inter_player_delay)
 
         # Calculate metrics
         delays_only = [delay for _, _, delay in server_to_player_delays]
