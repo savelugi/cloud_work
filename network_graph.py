@@ -198,6 +198,50 @@ class NetworkGraph:
 
         return save_path
 
+    def save_ga_graph(self, save_name, params):
+        save_dir = self.config['Settings']['save_dir']
+        topology = self.config['Topology']['topology']
+
+        save_path = save_dir + 'ga' + save_name + '_' + topology + "/"
+
+        num_players, nr_of_servers, max_players_connected, mutation_rate, generation_size, tournament_size = params
+
+        dir_name = topology + '_' + self.modelname + '_' + str(num_players)
+        save_name = dir_name + "_" + str(mutation_rate) + "_" + str(generation_size) + "_" + str(nr_of_servers)
+        folder_path = os.path.join(save_path, dir_name)  # Assuming you want to create the folder in the current directory
+        
+        # Check if the directory exists, if not, create it
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        
+        full_save_path = os.path.join(folder_path, save_name)
+
+        selected_servers = []
+        for server_idx, connected_players_list in self.connected_players_info.items():
+            if connected_players_list:
+                selected_servers.append(server_idx)
+
+        # Add node colors and edge colors as attributes
+        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'g' for node in self.graph.nodes()}
+        
+        # Initialize edge colors
+        edge_colors = {edge: 'black' for edge in self.graph.edges()}
+
+        # Set edge colors to red for edges in player+server_paths
+        for _, _, path in self.player_server_paths:
+            edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
+            for edge in edges:
+                edge_colors[edge] = 'red'
+
+        # Set node and edge attributes for colors
+        nx.set_node_attributes(self.graph, node_colors, 'color')
+        nx.set_edge_attributes(self.graph, edge_colors, 'color')
+
+        # Save the graph to a GML file
+        nx.write_gml(self.graph, full_save_path+".gml")
+
+        return save_path
+
     def calculate_qoe_metrics(self):
         player_scores = 0
         config_preferences = self.config['Weights']

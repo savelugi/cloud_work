@@ -22,17 +22,22 @@ timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
 
 timer = Timer()
 if optimize:
-    if save:
-        df_results = pd.DataFrame()
-    
     param_combinations = read_parameters_from_config(config)
+
+    if save:
+        #df_results = pd.DataFrame()
+        save_path = save_dir + timestamp + '_' + topology + "/"
+        # Check if the directory exists, if not, create it
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        csv_path = save_path+topology+"_"+str(param_combinations[0][0])+"_"+str(timestamp)+".csv"
+        write_csv_header(csv_path, active_models)
 
     # Main loop, going through all the parameters
     for params in param_combinations:
         num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = params
-
-        if save:
-            df_row = pd.DataFrame([list(params)], columns=['num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay'])
+        temp_csv_row = list(params)
         
 # ILP_SUM        
 ######################################################################################################################################################
@@ -44,7 +49,6 @@ if optimize:
                 print_pattern()
 
             timer.start()
-
             optimization_has_run = sum_delay_optimization(
                 network=network, 
                 server_positions=network.server_positions,
@@ -54,27 +58,19 @@ if optimize:
                 max_connected_players=max_connected_players,              
                 max_allowed_delay=max_allowed_delay,
                 debug_prints=debug_prints)
-
             timer.stop()   
 
             # Calculate metrics for the first Gurobi model
             if optimization_has_run:
                 network.calculate_delays(method_type='ILP Delay sum method', debug_prints=debug_prints)                
                 network.calculate_qoe_metrics()
-
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
                 save_path = network.save_graph(timestamp, params)
-
-                sum_columns = pd.DataFrame([network.delay_metrics], columns=[
-                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
-                
-                df_row = pd.concat([df_row, sum_columns], axis=1)
+                temp_csv_row += network.delay_metrics
 
         elif debug_prints:
             print(f"{modelname} model is turned off at this optimization sequece!")
@@ -86,7 +82,6 @@ if optimize:
         if 'ilp_ipd' in active_models:
             network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
             timer.start()
-
             optimization_has_run = interplayer_delay_optimization(
                 network=network,
                 server_positions=network.server_positions,
@@ -96,27 +91,20 @@ if optimize:
                 max_connected_players=max_connected_players,
                 max_allowed_delay=max_allowed_delay,
                 debug_prints=debug_prints)
-
             timer.stop()
 
             # Calculate metrics for the second Gurobi model
             if optimization_has_run:
                 network.calculate_delays(method_type='ILP Interplayer delay method', debug_prints=debug_prints)
                 network.calculate_qoe_metrics()
-
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                save_path = network.save_graph(timestamp, params)
+                network.save_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
 
-                ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
-                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
-                
-                df_row = pd.concat([df_row, ipd_columns], axis=1)
                 
         elif debug_prints:
             print(f"{modelname} model is turned off at this optimization sequece!")
@@ -128,7 +116,6 @@ if optimize:
         if 'gen_sum' in active_models:
             network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
             timer.start()
-
             optimization_has_run = genetic_algorithm(
                 network=network,
                 players=list(network.players),
@@ -141,7 +128,6 @@ if optimize:
                 selection_strategy="rank_based",
                 tournament_size=50,
                 fitness_method='sum')
-            
             timer.stop()
             
             # Calculate metrics for the metaheuristic model
@@ -154,14 +140,8 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                save_path = network.save_graph(timestamp, params)
-
-                gen_sum_columns = pd.DataFrame([network.delay_metrics], columns=[
-                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
-                
-                df_row = pd.concat([df_row, gen_sum_columns], axis=1)
+                network.save_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
     
         elif debug_prints:
            print(f"{modelname} model is turned off at this optimization sequece!")
@@ -200,14 +180,8 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                save_path = network.save_graph(timestamp, params)
-
-                gen_ipd_columns = pd.DataFrame([network.delay_metrics], columns=[
-                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
-                
-                df_row = pd.concat([df_row, gen_ipd_columns], axis=1)
+                network.save_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
     
         elif debug_prints:
            print(f"{modelname} model is turned off at this optimization sequece!")
@@ -246,32 +220,14 @@ if optimize:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
             if save:
-                save_path = network.save_graph(timestamp, params)
-
-                gen_combined_columns = pd.DataFrame([network.delay_metrics], columns=[
-                    f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}',
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}'])
-                
-                df_row = pd.concat([df_row, gen_combined_columns], axis=1)
+                network.save_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
     
         elif debug_prints:
            print(f"{modelname} model is turned off at this optimization sequece!")
 
-        df_results = pd.concat([df_results, df_row])
-
-    if save:
-        # Assuming df_results is your DataFrame
-        pd.set_option('display.max_rows', None)  # Show all rows
-        pd.set_option('display.max_columns', None)  # Show all columns
-        # Display the DataFrame
-        print(df_row)
-
-        # Save the DataFrame to a CSV file
-        csv = save_path+topology+"_"+str(num_players)+"_"+str(timestamp)+".csv"
-        latest_csv_dir = csv
-        df_results.to_csv(csv, index=False)
-
+        if save:    
+            write_csv_row(csv_path, temp_csv_row)
 
 
 # PLOT
@@ -281,7 +237,7 @@ if optimize:
 if plot:
     # Load data from CSV into df_results DataFrame
     if optimize:
-        df_results = pd.read_csv(latest_csv_dir, comment='#')
+        df_results = pd.read_csv(csv_path, comment='#')
     else:
         csv_file_name = "germany_100_20240504161640"
         try:
@@ -315,51 +271,6 @@ if plot:
                       title='Simulation time comparison')
 
     plt.show()
-
-
-# Drawing network decisions
-# visualization = Visualization(network)
-
-# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=True)
-
-# visualization.draw_paths(pos, player_server_paths_model_sum, server_positions, selected_servers_model_sum, players,
-#                         canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='SUM')
-
-# visualization.draw_paths(pos, player_server_paths_model_ipd, server_positions, selected_servers_model_ipd, players,
-#                             canvas_size=(48, 30), node_size=60, show_edge_labels=True, title='IPD')
-
-# visualization.display_plots()
-
-####
-# network = NetworkGraph()
-
-# network.load_topology(topology_dir+"37_cost_scaled.gml")
-
-# # Player generation parameters
-# lat_range = (35, 62) # from graph
-# long_range = (-10,28) # from graph
-# seed_value = 42
-# num_players = 100
-
-# # Getting server positions
-# server_positions = network.get_server_positions()
-
-# print(network.get_max_server_to_server_delay(server_positions)[0])
-# print(network.get_max_server_to_server_delay(server_positions)[1])
-
-# players = generate_players(num_players, long_range, lat_range, seed_value)
-# network.add_players(players)
-
-# for player in players:
-#     network.connect_player_to_server(players, player, server_positions)
-
-# # Preparing positions
-# pos = {**server_positions, **players}
-       
-# # Drawing network decisions
-# visualization = Visualization(network)
-# visualization.draw_graph(pos, server_positions, players, canvas_size=(48, 30), node_size=60, show_edge_labels=False)
-# visualization.display_plots() 
 
 if False:
     plt.figure(figsize=(10, 6))

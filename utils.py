@@ -2,6 +2,7 @@ import random
 import time
 import pandas as pd
 import math
+import csv
 import configparser
 
 def get_lat_long_range(config):
@@ -24,7 +25,7 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
     x_start, x_stop = x_range
     y_start, y_stop = y_range
     
-    for i in range(num_players):
+    for i in range(int(num_players)):
         player_name = f"P{i+1}"
 
         x = round(random.uniform(x_start, x_stop), 2)
@@ -129,12 +130,40 @@ def get_toggles_from_config(config):
         active_models.append('gen_combined')
     return debug_prints, optimize, save, plot, active_models
 
+def get_toggles_from_genconfig(config):
+    debug_prints = config['Toggles'].getboolean('debug')
+    optimize = config['Toggles'].getboolean('optimize')
+    save = config['Toggles'].getboolean('save')
+    active_models = []
+    if config['Toggles'].getboolean('sum_rank_single'):
+        active_models.append('sum_rank_single')
+    if config['Toggles'].getboolean('sum_rank_multi'):
+        active_models.append('sum_rank_multi')
+    if config['Toggles'].getboolean('sum_rank_unif'):
+        active_models.append('sum_rank_unif')
+    if config['Toggles'].getboolean('sum_tournament_single'):
+        active_models.append('sum_tournament_single')
+    if config['Toggles'].getboolean('sum_tournament_multi'):
+        active_models.append('sum_tournament_multi')
+    if config['Toggles'].getboolean('sum_tournament_unif'):
+        active_models.append('sum_tournament_unif')
+    return debug_prints, optimize, save, active_models
+
 def read_parameters_from_config(config):
     topology = config['Topology']['topology']
 
     param_combinations = []
     for key in config[topology]:
         param_combinations.append(tuple(map(int, config[topology][key].split(','))))
+
+    return param_combinations
+
+def read_parameters_from_genconfig(config):
+    topology = config['Topology']['topology']
+
+    param_combinations = []
+    for key in config[topology]:
+        param_combinations.append(tuple(map(float, config[topology][key].split(','))))
 
     return param_combinations
 
@@ -152,6 +181,36 @@ def calculate_ping_score(actual_ping, wanted_ping):
 def calculate_video_score():
     return None
 
+def write_csv_header(csv_path, active_models):
+    header_columns = ['num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay']
+    
+    with open(csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        for modelname in active_models:
+            header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
+        
+        writer.writerow(header_columns)
+
+def write_ga_csv_header(csv_path, active_models):
+    header_columns = ['num_players', 'nr_of_servers', 'max_players_connected', 'mutation_rate', 'generation_size', 'tournament_size']
+    
+    with open(csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        for modelname in active_models:
+            header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
+                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
+        
+        writer.writerow(header_columns)
+        
+def write_csv_row(csv_path, values):
+    with open(csv_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(values)
 
 class Timer:
     def __init__(self):

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
 import seaborn as sns
+from utils import *
 
 model_columns = {
     "SUM": ['average_player_to_server_delay_sum', 'min_player_to_server_delay_sum', 'max_player_to_server_delay_sum',
@@ -152,6 +153,27 @@ def draw_compare_plot(*args, df, x:str, x_label:str, plot_type:str, y_label:str,
     plt.figure(figsize=(10, 6))
     for model, data in mod_data.items():
         sns.lineplot(data=data, x=x, y=plot_type+model, label=model.split('_')[-2].title() + " " + model.split('_')[-1].title() + ' Method')
+    # Inverting X axis
+    if invert:
+        plt.gca().invert_xaxis()
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()
+
+def draw_ga_compare_plot(*args, df, x:str, x_label:str, plot_type:str, y_label:str, title:str, invert=True, same_params=False):
+    mod_data = {}
+    for model in args:
+        mod_cols = [col for col in df.columns if model in col]
+        mod_data[model] = df[['num_players', 'nr_of_servers', 'max_players_connected', 'mutation_rate', 'generation_size', 'tournament_size'] + mod_cols]
+
+    plt.figure(figsize=(10, 6))
+    for model, data in mod_data.items():
+        if not same_params:
+            sns.lineplot(data=data, x=x, y=plot_type+model, label=model.split('_')[-2].title() + " " + model.split('_')[-1].title() + ' Method')
+        else:
+            sns.lineplot(data=data, x=[1, 2, 3, 4, 5], y=plot_type+model, label=model.split('_')[-2].title() + " " + model.split('_')[-1].title() + ' Method')   
     # Inverting X axis
     if invert:
         plt.gca().invert_xaxis()
