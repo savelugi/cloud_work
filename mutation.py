@@ -14,7 +14,7 @@ def initial_population(players, servers, population_size):
         population.append(chromosome)
     return population
 
-def enforce_max_players_per_server(chromosome, max_connected_players):
+def enforce_min_max_players_per_server(chromosome, max_connected_players, min_connected_players):
     server_counts = {server: 0 for server in set(chromosome)}
     for server in chromosome:
         server_counts[server] += 1
@@ -40,6 +40,29 @@ def enforce_max_players_per_server(chromosome, max_connected_players):
                         chromosome[idx] = srv
                         server_counts[srv] += 1
                         server_counts[server] -=1
+                        break
+
+    # Ensure minimum number of players per server
+    for server, count in server_counts.items():
+        if count < int(min_connected_players):
+            # Find indices of players connected to this server
+            indices = [i for i, s in enumerate(chromosome) if s == server]
+            # Randomly shuffle the indices to randomize the selection
+            random.shuffle(indices)
+            # Take the first min_connected_players indices to fill
+            fill_indices = indices[:int(min_connected_players) - count]
+
+            # Determine servers with the fewest players
+            min_count = min(server_counts.values())
+            min_player_servers = [srv for srv, cnt in server_counts.items() if cnt == min_count]
+
+            # Move players from other servers to fill empty slots
+            for idx in fill_indices:
+                for srv in min_player_servers:
+                    if server_counts[srv] < int(max_connected_players):
+                        chromosome[idx] = srv
+                        server_counts[srv] += 1
+                        server_counts[server] -= 1
                         break
 
     return chromosome
@@ -79,6 +102,7 @@ def fitness_sum(network: NetworkGraph, chromosome, players):
 @lru_cache(maxsize=None)
 def fitness_ipd(network: NetworkGraph, chromosome, players):
     max_value = 0
+    delay = 0
 
     # Retrieve the selected servers and connected players
     connected_players_to_server = {}  
@@ -95,65 +119,31 @@ def fitness_ipd(network: NetworkGraph, chromosome, players):
                     delay = network.get_shortest_path_delay(player1, server) + network.get_shortest_path_delay(player2, server)
                     if delay > max_value:
                         max_value = delay
-
+                if len(players_list) == 1:
+                    delay = network.get_shortest_path_delay(player1, server)
+                    if delay > max_value:
+                        max_value = delay
+                
     return max_value
 
 @lru_cache(maxsize=None)
-def fitness_sum_ipd(network: NetworkGraph, chromosome, players):
-    sum_player_server_delay = 0
-    min_sum_delay = float('inf')  
-    max_sum_delay = 0
+def fitness_sum_ipd(network: NetworkGraph, chromosome, players, init_fitnesses, ratio):
+    max_sum_fitness, max_ipd_fitness = init_fitnesses
 
-    for i, server in enumerate(chromosome):
-        player = players[i]
-        delay = network.get_shortest_path_delay(player, server)
-        sum_player_server_delay += delay
-        
-        if delay < min_sum_delay:
-            min_sum_delay = delay
-        if delay > max_sum_delay:
-            max_sum_delay = delay
+    normalized_sum_delay = fitness_sum(network, chromosome, players) / max_sum_fitness
+    normalized_max_ipd = fitness_ipd(network, chromosome, players) / max_ipd_fitness
 
-    normalized_sum_delay = (sum_player_server_delay - min_sum_delay) / (max_sum_delay - min_sum_delay) if max_sum_delay != min_sum_delay else 0
-
-    max_player_player_delay = 0
-    min_interplayer_delay = float('inf')
-    max_interplayer_delay = 0
-
-    connected_players_to_server = {}  
-    for player_index, server_index in enumerate(chromosome):
-        if server_index not in connected_players_to_server:
-            connected_players_to_server[server_index] = []
-        connected_players_to_server[server_index].append(f"P{player_index+1}")
-
-    for server, players_list in connected_players_to_server.items():
-        for player1 in players_list:
-            for player2 in players_list:
-                if player1 != player2:
-                    delay = network.get_shortest_path_delay(player1, server) + network.get_shortest_path_delay(player2, server)
-
-                    if delay < min_interplayer_delay:
-                        min_interplayer_delay = delay
-                    if delay > max_interplayer_delay:
-                        max_interplayer_delay = delay
-
-                    if delay > max_player_player_delay:
-                        max_player_player_delay = delay
-
-    normalized_interplayer_delay = (max_player_player_delay - min_interplayer_delay) / (max_interplayer_delay - min_interplayer_delay) if max_interplayer_delay != min_interplayer_delay else 0
-
-    # Visszaadjuk a súlyozott összfitnesszt
-    return 0.7 * sum_player_server_delay +  13 * 0.3 *max_player_player_delay
+    return ratio * 0.1 * normalized_sum_delay + (10 - ratio) * 0.1 * normalized_max_ipd
 
 
-def fitness(network: NetworkGraph, chromosome, players, method):
+def fitness(network: NetworkGraph, chromosome, players, method, init_fitnesses=None, ratio=6):
     # Az általános függvény, amely dönti el, hogy melyik fitness függvényt kell használni
     if method == 'ipd':
         return fitness_ipd(network, chromosome, players)
     elif method == 'sum':
         return fitness_sum(network, chromosome, players)
     elif method == 'sum_ipd':
-        return fitness_sum_ipd(network, chromosome, players)
+        return fitness_sum_ipd(network, chromosome, players, init_fitnesses, ratio)
     else:
         raise ValueError("Invalid fitness method. Choose from 'sum', 'ipd', 'sum_ipd'.")
 
@@ -272,27 +262,43 @@ def selection(population, fitness_values, selection_strategy, tournament_size=No
     else:
         raise ValueError("Invalid selection strategy")
 
-def genetic_algorithm(network: NetworkGraph, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr, 
-                      selection_strategy="rank_based", tournament_size=None, fitness_method='ipd', crossover_method='single_point'):
+def calculate_init_fitness(network, players, init_population, method):
+
+    fitness_values = [fitness(network, tuple(chromosome), tuple(players), method) for chromosome in init_population]
+    init_pop_fitness = sorted(init_population, key=lambda x: fitness_values[init_population.index(x)])
+    max_fitness = fitness_values[init_population.index(init_pop_fitness[-1])]
+
+    return max_fitness
+
+def genetic_algorithm(network: NetworkGraph, players, servers, population_size, mutation_rate, generations, min_connected_players, max_connected_players, max_server_nr, 
+                      selection_strategy="rank_based", tournament_size=None, fitness_method='ipd', crossover_method='single_point', ratio=6):
     
     best_fitnesses = []
-    average_fitnesses = []
+    #average_fitnesses = []
     cntr = 0
 
     population = initial_population(players, servers, population_size)
 
+    if fitness_method == 'sum_ipd':
+        # calculating maximums to normalize fitness functions
+        init_sum_fitness = calculate_init_fitness(network, players, population, method='sum')
+        init_ipd_fitness = calculate_init_fitness(network, players, population, method='ipd')
+        init_fitnesses = (init_sum_fitness, init_ipd_fitness)
+
     for _ in range(int(generations)):
         cntr += 1
-        fitness_values = [fitness(network, tuple(chromosome), tuple(players), fitness_method) for chromosome in population]
+        if fitness_method == 'sum_ipd':
+            fitness_values = [fitness(network, tuple(chromosome), tuple(players), fitness_method, init_fitnesses, ratio) for chromosome in population]
+        else:
+            fitness_values = [fitness(network, tuple(chromosome), tuple(players), fitness_method) for chromosome in population]
         sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
-
         best_solution = sorted_pop[0]
 
         best_fitness = fitness_values[population.index(best_solution)]
-        best_fitnesses.append(best_fitness)
+        #best_fitnesses.append(best_fitness)
 
-        average_fitness = sum(fitness_values) / population_size
-        average_fitnesses.append(average_fitness)
+        #average_fitness = sum(fitness_values) / population_size
+        #average_fitnesses.append(average_fitness)
 
         if cntr >= 10:
             cntr = 0
@@ -308,9 +314,9 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 
             # Enforce boundaries
             child1 = enforce_max_server_occurrences(child1, max_server_nr)
-            child1 = enforce_max_players_per_server(child1, max_connected_players)
+            child1 = enforce_min_max_players_per_server(child1, max_connected_players, min_connected_players)
             child2 = enforce_max_server_occurrences(child2, max_server_nr)
-            child2 = enforce_max_players_per_server(child2, max_connected_players)
+            child2 = enforce_min_max_players_per_server(child2, max_connected_players, min_connected_players)
 
             offspring.extend([child1, child2])
 

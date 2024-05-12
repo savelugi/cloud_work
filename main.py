@@ -25,7 +25,7 @@ if optimize:
     param_combinations = read_parameters_from_config(config)
 
     if save:
-        #df_results = pd.DataFrame()
+        topology = config['Topology']['topology']
         save_path = save_dir + timestamp + '_' + topology + "/"
         # Check if the directory exists, if not, create it
         if not os.path.exists(save_path):
@@ -123,6 +123,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate= 0.01,
                 generations= 1000,
+                min_connected_players=min_players_connected,
                 max_connected_players=max_connected_players,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
@@ -162,6 +163,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate= 0.01,
                 generations= 1000,
+                min_connected_players=min_players_connected,
                 max_connected_players=max_connected_players,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
@@ -194,7 +196,7 @@ if optimize:
             network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
 
             timer.start()
-
+            #max_allowed_delay param is being used for ratio! int type but it is converted to float in the fitness function
             optimization_has_run = genetic_algorithm(
                 network=network,
                 players=list(network.players),
@@ -202,11 +204,13 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate= 0.01,
                 generations= 1000,
+                min_connected_players=min_players_connected,
                 max_connected_players=max_connected_players,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
                 tournament_size=50,
-                fitness_method='sum_ipd')
+                fitness_method='sum_ipd',
+                ratio=max_allowed_delay)
             
             timer.stop()
             
