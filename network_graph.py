@@ -178,7 +178,7 @@ class NetworkGraph:
                 selected_servers.append(server_idx)
 
         # Add node colors and edge colors as attributes
-        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'g' for node in self.graph.nodes()}
+        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'green' for node in self.graph.nodes()}
         
         # Initialize edge colors
         edge_colors = {edge: 'black' for edge in self.graph.edges()}
@@ -222,7 +222,7 @@ class NetworkGraph:
                 selected_servers.append(server_idx)
 
         # Add node colors and edge colors as attributes
-        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'g' for node in self.graph.nodes()}
+        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'green' for node in self.graph.nodes()}
         
         # Initialize edge colors
         edge_colors = {edge: 'black' for edge in self.graph.edges()}
@@ -273,9 +273,9 @@ class NetworkGraph:
         player_to_player_delays = []
         min_value = (0, 0, float('inf'))
         max_value = (0, 0, 0)
-        PLAYER_LOC = 1
+        #PLAYER_LOC = 1, DELAY_LOC = 3
         SERVER_LOC = 2
-        DELAY_LOC = 3
+        
 
         for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:

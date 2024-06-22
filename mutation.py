@@ -6,11 +6,13 @@ from visualization import *
 from gurobi import *
 import numpy as np
 from functools import lru_cache
+from scipy.stats import sem
 
+default_random = random.Random()
 def initial_population(players, servers, population_size):
     population = []
     for _ in range(population_size):
-        chromosome = [random.choice(servers) for _ in range(len(players))]
+        chromosome = [default_random.choice(servers) for _ in range(len(players))]
         population.append(chromosome)
     return population
 
@@ -24,11 +26,15 @@ def enforce_min_max_players_per_server(chromosome, max_connected_players, min_co
             # Find indices of players connected to this server
             indices = [i for i, s in enumerate(chromosome) if s == server]
             # Randomly shuffle the indices to randomize the selection
-            random.shuffle(indices)
+            # TODO: itt az a gond, hogy azokat a jatekosokat amelyeket eldob a szerver, azok is random valasztodnak ki,
+            #       itt azokat kene eldobja a szerver amelyeknek a legnagyobb a kesleltetesuk
+            default_random.shuffle(indices)
             # Take the first max_connected_players indices to keep
             drop_indices = indices[int(max_connected_players):]
 
             # Determine servers with the second most players
+            # TODO: itt az a baj hogy arra a szerverre helyezi at amelyen a masodik legtobb jatekos van, nem pedig arra a szerverre,
+            #       amely helyileg a legkozelebb van
             sorted_counts = sorted(set(server_counts.values()), reverse=True)
             second_max_count = sorted_counts[1] if len(sorted_counts) > 1 else sorted_counts[0]
             second_max_player_servers = [srv for srv, cnt in server_counts.items() if cnt == second_max_count]
@@ -43,12 +49,13 @@ def enforce_min_max_players_per_server(chromosome, max_connected_players, min_co
                         break
 
     # Ensure minimum number of players per server
+    # TODO: ez nem mukodik tokeletesen
     for server, count in server_counts.items():
         if count < int(min_connected_players):
             # Find indices of players connected to this server
             indices = [i for i, s in enumerate(chromosome) if s == server]
             # Randomly shuffle the indices to randomize the selection
-            random.shuffle(indices)
+            default_random.shuffle(indices)
             # Take the first min_connected_players indices to fill
             fill_indices = indices[:int(min_connected_players) - count]
 
@@ -57,6 +64,9 @@ def enforce_min_max_players_per_server(chromosome, max_connected_players, min_co
             min_player_servers = [srv for srv, cnt in server_counts.items() if cnt == min_count]
 
             # Move players from other servers to fill empty slots
+            # TODO: itt az a baj hogy arra a szerverre helyezi at amelyen a legkevesebb jatekos van, nem pedig arra a szerverre,
+            #       amely helyileg a legkozelebb van
+
             for idx in fill_indices:
                 for srv in min_player_servers:
                     if server_counts[srv] < int(max_connected_players):
@@ -77,8 +87,11 @@ def enforce_max_server_occurrences(chromosome, max_server_nr):
         return chromosome
 
     # Túl sok szerver van, szükség van a csökkentésre
+    # TODO: megoldani hogy ne shuffle szerint dobjuk ki a felesleges szervereket, mivel igy a jo szervereket is eldobhatjuk
+    #       helyette mondjuk a szerverszamok szerint kene sorbarendezni oket es eldobni azokat a szervereket amelyken keves 
+    #       jatekos van
     servers = [server for server, count in server_counts.items() if count >= 1]
-    random.shuffle(servers)
+    default_random.shuffle(servers)
 
     # Csak az első max_server_nr szükséges
     servers_to_keep = servers[:int(max_server_nr)]
@@ -87,7 +100,7 @@ def enforce_max_server_occurrences(chromosome, max_server_nr):
     chromosome = [server if server in servers_to_keep else None for server in chromosome]
 
     # Távolítsuk el a None értékeket
-    chromosome = [server if server is not None else random.choice(servers_to_keep) for server in chromosome]
+    chromosome = [server if server is not None else default_random.choice(servers_to_keep) for server in chromosome]
 
     return chromosome
 
@@ -157,7 +170,7 @@ def uniform_crossover(parent1, parent2):
     child1 = []
     child2 = []
     for gene1, gene2 in zip(parent1, parent2):
-        if random.random() < 0.5:
+        if default_random.random() < 0.5:
             child1.append(gene1)
             child2.append(gene2)
         else:
@@ -166,8 +179,8 @@ def uniform_crossover(parent1, parent2):
     return child1, child2
 
 def multi_point_crossover(parent1, parent2):
-    num_points = random.randint(1, len(parent1) - 1)
-    points = sorted(random.sample(range(1, len(parent1)), num_points))
+    num_points = default_random.randint(1, len(parent1) - 1)
+    points = sorted(default_random.sample(range(1, len(parent1)), num_points))
 
     child1 = []
     child2 = []
@@ -196,11 +209,43 @@ def crossover(parent1, parent2, method='single_point'):
     else:
         raise ValueError("Invalid crossover method. Choose from 'single_point', 'uniform', or 'multi_point'.")
 
-def mutate(chromosome, mutation_rate, servers):
+def mutate(chromosome, mutation_rate, servers, method='mut_servers'):
+    if method == 'mut_servers':
+        return mutate_servers(chromosome, mutation_rate, servers)
+    elif method == 'mut_players':
+        return mutate_players(chromosome, mutation_rate, servers)
+    else:
+        raise ValueError("Invalid mutation method. Choose from 'mut_servers', or 'mut_players'.")
+
+
+def mutate_servers(chromosome, mutation_rate, servers):
+    mutated_chromosome = chromosome[:]
+    unique_servers = list(set(chromosome))
+
+    for server in unique_servers:
+        if default_random.random() < mutation_rate:
+            if int(server) < len(servers):
+                incr = str(int(server) + 1)
+            else:
+                decr = str(int(server) - 1)
+                incr = decr
+            if int(server) == 0:
+                decr = str(1)
+            else:
+                decr = str(int(server) - 1)
+
+            new_server = default_random.choice([incr, decr])
+
+            for i in range(len(mutated_chromosome)):
+                if mutated_chromosome[i] == server:
+                    mutated_chromosome[i] = new_server
+    return mutated_chromosome
+
+def mutate_players(chromosome, mutation_rate, servers):
     mutated_chromosome = chromosome[:]
     for i in range(len(mutated_chromosome)):
-        if random.random() < mutation_rate:
-            mutated_chromosome[i] = random.choice(servers)
+        if default_random.random() < mutation_rate:
+            mutated_chromosome[i] = default_random.choice(servers)
 
     return mutated_chromosome
 
@@ -216,7 +261,7 @@ def roulette_wheel_selection(population, fitness_values):
     
     # Select parents using inverted probabilities
     #selected_parents_indices = np.random.choice(len(population), size=len(population)//2, p=selection_probabilities)
-    selected_parents_indices = random.choices(population, weights=selection_probabilities, k=len(population)//2)
+    selected_parents_indices = default_random.choices(population, weights=selection_probabilities, k=len(population)//2)
     
     # Return selected parents
    # selected_parents = [population[idx] for idx in selected_parents_indices]
@@ -246,7 +291,7 @@ def rank_based_selection(population, fitness_values):
     inverted = [1/prob for prob in selection_probabilities]
     
     # Randomly select parents based on selection probabilities
-    selected_parents_indices = random.choices(sorted_indices, weights=inverted, k=len(population)//2)
+    selected_parents_indices = default_random.choices(sorted_indices, weights=inverted, k=len(population)//2)
     
     # Return selected parents
     selected_parents = [population[idx] for idx in selected_parents_indices]
@@ -271,9 +316,9 @@ def calculate_init_fitness(network, players, init_population, method):
     return max_fitness
 
 def genetic_algorithm(network: NetworkGraph, players, servers, population_size, mutation_rate, generations, min_connected_players, max_connected_players, max_server_nr, 
-                      selection_strategy="rank_based", tournament_size=None, fitness_method='ipd', crossover_method='single_point', ratio=6):
+                      selection_strategy="tournament", tournament_size=None, fitness_method='ipd', crossover_method='uniform', ratio=6):
     
-    best_fitnesses = []
+    #best_fitnesses = []
     #average_fitnesses = []
     cntr = 0
 
@@ -295,10 +340,6 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
         best_solution = sorted_pop[0]
 
         best_fitness = fitness_values[population.index(best_solution)]
-        #best_fitnesses.append(best_fitness)
-
-        #average_fitness = sum(fitness_values) / population_size
-        #average_fitnesses.append(average_fitness)
 
         if cntr >= 10:
             cntr = 0
@@ -307,10 +348,10 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
         parents = selection(population, fitness_values, selection_strategy, tournament_size)
         offspring = []
         while len(offspring) < population_size - len(parents):
-            parent1, parent2 = random.sample(parents, 2)
+            parent1, parent2 = default_random.sample(parents, 2)
             child1, child2 = crossover(parent1, parent2, method=crossover_method)
-            child1 = mutate(child1, mutation_rate, servers)
-            child2 = mutate(child2, mutation_rate, servers)
+            child1 = mutate(child1, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
+            child2 = mutate(child2, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
 
             # Enforce boundaries
             child1 = enforce_max_server_occurrences(child1, max_server_nr)
@@ -321,6 +362,9 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
             offspring.extend([child1, child2])
 
         population = parents + offspring
+
+    sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
+    best_solution = sorted_pop[0]
 
     # Retrieve the selected servers and connected players
     connected_players_to_server = {}  
@@ -347,19 +391,109 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 
     return True
 
-# best_solution, best_fitnesses, average_fitnesses, not_used1, not_used2 = genetic_algorithm(
-#     network, players, servers, population_size, mutation_rate, generations, max_connected_players, max_server_nr,
-#     selection_strategy="rank_based",
-#     tournament_size=50,
-#     fitness_method='sum')
+def plot_fitness_comparison(results, generations):
+    plt.figure(figsize=(14, 8))
+    for param_key, param_results in results.items():
+        for key, fitness_stats in param_results.items():
+            mean_fitness = fitness_stats['mean']
+            std_err = fitness_stats['stderr']
+            lower_bound = mean_fitness - 1.96 * std_err
+            upper_bound = mean_fitness + 1.96 * std_err
+            plt.plot(range(generations), mean_fitness, label=f'{param_key} {key}')
+            plt.fill_between(range(generations), lower_bound, upper_bound, alpha=0.2)
+    plt.xlabel('Generations')
+    plt.ylabel('Fitness')
+    plt.legend()
+    plt.title('Fitness Comparison') #with Confidence Intervals
+    plt.show()
 
-# #Plotting the fitness over generations
-# plt.plot(range(generations), best_fitnesses, label='Best Fitness')
-# #print("Best fitness score:")
-# #print(best_fitnesses[-1])
-# plt.plot(range(generations), average_fitnesses, label='Average Fitness')
-# plt.xlabel('Generation')
-# plt.ylabel('Fitness')
-# plt.title('Fitness over Generations')
-# plt.legend()
-# plt.show()
+def compare_fitness_methods(network, players, servers, mutation_rates, generation_counts, population_sizes, 
+                            min_connected_players, max_connected_players, tournament_sizes, max_server_nr, ratio=6, runs=2):
+    
+    fitness_methods = ['sum']
+    selection_strategies = ['tournament', 'rank_based'] #rank_based
+    crossover_methods = ['multi_point', 'uniform']
+    mutation_methods = ['mut_players', 'random_muts']
+    results = {}
+
+    for tournament_size in tournament_sizes:
+        for mutation in mutation_methods:
+            for mutation_rate in mutation_rates:
+                for generations in generation_counts:
+                    for population_size in population_sizes:
+                        #param_key = f'pop_size_{population_size}_gen_{generations}_mut_{mutation_rate}'
+                        param_key = f'{mutation}_{mutation_rate}'
+                        results[param_key] = {}
+
+                        for fitness_method in fitness_methods:
+                            for selection_strategy in selection_strategies:
+                                for crossover_method in crossover_methods:
+                                    key = f'{fitness_method}_{selection_strategy}_{crossover_method}'
+                                    all_fitness_histories = []
+
+                                    for run in range(runs):
+                                        population = initial_population(players, servers, population_size)
+                                        fitness_history = []
+
+                                        if fitness_method == 'sum_ipd':
+                                            init_sum_fitness = calculate_init_fitness(network, players, population, 'sum')
+                                            init_ipd_fitness = calculate_init_fitness(network, players, population, 'ipd')
+                                            init_fitnesses = (init_sum_fitness, init_ipd_fitness)
+                                        else:
+                                            init_fitnesses = None
+
+                                        for gen in range(generations):
+                                            fitness_values = [
+                                                fitness(network, tuple(chrom), tuple(players), fitness_method, init_fitnesses, ratio) 
+                                                if fitness_method == 'sum_ipd' else 
+                                                fitness(network, tuple(chrom), tuple(players), fitness_method)
+                                                for chrom in population
+                                            ]
+
+                                            best_fitness = min(fitness_values)
+                                            fitness_history.append(best_fitness)
+
+                                            parents = selection(population, fitness_values, selection_strategy, tournament_size)
+                                            offspring = []
+                                            while len(offspring) < population_size - len(parents):
+                                                parent1, parent2 = random.sample(parents, 2)
+                                                child1, child2 = crossover(parent1, parent2, method=crossover_method)
+                                                if mutation == 'random_muts':
+                                                    child1 = mutate(child1, mutation_rate, servers, method=default_random.choice(['mut_servers', 'mut_players']))
+                                                    child2 = mutate(child2, mutation_rate, servers, method=default_random.choice(['mut_servers', 'mut_players']))
+                                                else:
+                                                    child1 = mutate(child1, mutation_rate, servers, method=mutation)
+                                                    child2 = mutate(child2, mutation_rate, servers, method=mutation) 
+                                                child1 = enforce_min_max_players_per_server(enforce_max_server_occurrences(child1, max_server_nr), max_connected_players, min_connected_players)
+                                                child2 = enforce_min_max_players_per_server(enforce_max_server_occurrences(child2, max_server_nr), max_connected_players, min_connected_players)
+                                                offspring.extend([child1, child2])
+
+                                            population = parents + offspring
+
+                                        all_fitness_histories.append(fitness_history)
+
+                                    mean_fitness = np.mean(all_fitness_histories, axis=0)
+                                    stderr_fitness = sem(all_fitness_histories, axis=0)
+                                    results[param_key][key] = {'mean': mean_fitness, 'stderr': stderr_fitness}
+
+    plot_fitness_comparison(results, generations)
+
+# Example usage
+if __name__ == "__main__":
+    config_file = "/Users/ebenbot/Documents/University/cloud_work/genconfig.ini"
+    config = read_configuration(config_file)
+    param_combinations = read_parameters_from_genconfig(config)
+    num_players, nr_of_servers, max_players_connected, mutation_rate, generation_size, tournament_size = param_combinations[0]
+    network = NetworkGraph(config=config, num_players=num_players)
+    players = list(network.players)
+    servers = network._only_servers
+    min_connected_players = 4
+    max_server_nr = nr_of_servers
+
+    mutation_rates = [0.01]
+    generation_counts = [2000]
+    population_sizes = [100]
+    tournament_sizes = [4]
+
+    compare_fitness_methods(network, players, servers, mutation_rates, generation_counts, population_sizes, 
+                            min_connected_players, max_players_connected, tournament_sizes, max_server_nr, ratio=10)

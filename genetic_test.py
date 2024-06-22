@@ -45,6 +45,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
@@ -82,6 +83,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
@@ -118,6 +120,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="rank_based",
@@ -154,6 +157,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="tournament",
@@ -192,6 +196,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="tournament",
@@ -230,6 +235,7 @@ if optimize:
                 population_size=len(network.players),
                 mutation_rate=mutation_rate,
                 generations=generation_size,
+                min_connected_players=tournament_size,
                 max_connected_players=max_players_connected,
                 max_server_nr=nr_of_servers,
                 selection_strategy="tournament",
@@ -251,6 +257,116 @@ if optimize:
                 network.save_ga_graph(timestamp, params)
                 temp_csv_row += network.delay_metrics
     
+        elif debug_prints:
+           print(f"{modelname} model is turned off at this optimization sequece!")
+
+######################################################################################################################################################
+######################################################################################################################################################
+        modelname = 'sum_roulette_single'
+        if modelname in active_models:
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            timer.start()
+            optimization_has_run = genetic_algorithm(
+                network=network,
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
+                mutation_rate=mutation_rate,
+                generations=generation_size,
+                min_connected_players=tournament_size,
+                max_connected_players=max_players_connected,
+                max_server_nr=nr_of_servers,
+                selection_strategy="roulette_wheel",
+                tournament_size=tournament_size,
+                fitness_method='sum',
+                crossover_method='single_point')
+            timer.stop()
+            
+            # Calculate metrics for the metaheuristic model
+            if optimization_has_run:
+                network.calculate_delays(method_type='', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
+
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
+            else:
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+            if save:
+                network.save_ga_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
+    
+        elif debug_prints:
+           print(f"{modelname} model is turned off at this optimization sequece!")
+
+######################################################################################################################################################
+######################################################################################################################################################
+        modelname = 'sum_roulette_multi'
+        if modelname in active_models:
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            timer.start()
+            optimization_has_run = genetic_algorithm(
+                network=network,
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
+                mutation_rate=mutation_rate,
+                generations=generation_size,
+                min_connected_players=tournament_size,
+                max_connected_players=max_players_connected,
+                max_server_nr=nr_of_servers,
+                selection_strategy="roulette_wheel",
+                tournament_size=tournament_size,
+                fitness_method='sum',
+                crossover_method='multi_point')
+            timer.stop()
+            
+            # Calculate metrics for the metaheuristic model
+            if optimization_has_run:
+                network.calculate_delays(method_type='', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
+
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
+            else:
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+            if save:
+                network.save_ga_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
+    
+######################################################################################################################################################
+######################################################################################################################################################
+        modelname = 'sum_roulette_unif'
+        if modelname in active_models:
+            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            timer.start()
+            optimization_has_run = genetic_algorithm(
+                network=network,
+                players=list(network.players),
+                servers=network._only_servers,
+                population_size=len(network.players),
+                mutation_rate=mutation_rate,
+                generations=generation_size,
+                min_connected_players=tournament_size,
+                max_connected_players=max_players_connected,
+                max_server_nr=nr_of_servers,
+                selection_strategy="roulette_wheel",
+                tournament_size=tournament_size,
+                fitness_method='sum',
+                crossover_method='uniform')
+            timer.stop()
+            
+            # Calculate metrics for the metaheuristic model
+            if optimization_has_run:
+                network.calculate_delays(method_type='', debug_prints=debug_prints)
+                network.calculate_qoe_metrics()
+
+                network.delay_metrics.append(round(timer.get_elapsed_time()))
+            else:
+                network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+            if save:
+                network.save_ga_graph(timestamp, params)
+                temp_csv_row += network.delay_metrics
         elif debug_prints:
            print(f"{modelname} model is turned off at this optimization sequece!")
         if save:    

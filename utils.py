@@ -147,6 +147,13 @@ def get_toggles_from_genconfig(config):
         active_models.append('sum_tournament_multi')
     if config['Toggles'].getboolean('sum_tournament_unif'):
         active_models.append('sum_tournament_unif')
+    if config['Toggles'].getboolean('sum_roulette_single'):
+        active_models.append('sum_roulette_single')
+    if config['Toggles'].getboolean('sum_roulette_multi'):
+        active_models.append('sum_roulette_multi')
+    if config['Toggles'].getboolean('sum_roulette_unif'):
+        active_models.append('sum_roulette_unif')
+
     return debug_prints, optimize, save, active_models
 
 def read_parameters_from_config(config):
