@@ -155,7 +155,7 @@ class NetworkGraph:
         return [max_delay, between]
     
     def save_graph(self, save_name, params):
-        save_dir = self.config['Settings']['save_dir']
+        save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
         topology = self.config['Topology']['topology']
 
         save_path = save_dir + save_name + '_' + topology + "/"
@@ -199,10 +199,10 @@ class NetworkGraph:
         return save_path
 
     def save_ga_graph(self, save_name, params):
-        save_dir = self.config['Settings']['save_dir']
+        save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
         topology = self.config['Topology']['topology']
 
-        save_path = save_dir + 'ga' + save_name + '_' + topology + "/"
+        save_path = save_dir  + 'ga' + save_name + '_' + topology + "/"
 
         num_players, nr_of_servers, max_players_connected, mutation_rate, generation_size, tournament_size = params
 

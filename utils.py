@@ -4,6 +4,7 @@ import pandas as pd
 import math
 import csv
 import configparser
+import os
 
 def get_lat_long_range(config):
     topology = config['Topology']['topology']
@@ -104,14 +105,11 @@ def read_configuration(config_file):
 def get_topology_filename(config):
     if config['Topology']['topology'] in config['Scaled network topologies']:
         topology = config['Topology']['topology']
-        return config['Settings']['topology_dir'] + config['Scaled network topologies'][topology]
+        return  os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), "src"),  config['Scaled network topologies'][topology])
     else:
         print("Scaled topology is not found in the config file!")
         return None
     
-def get_save_dir(config):
-    return config['Settings']['save_dir']
-
 def get_toggles_from_config(config):
     debug_prints = config['Toggles'].getboolean('debug')
     optimize = config['Toggles'].getboolean('optimize')

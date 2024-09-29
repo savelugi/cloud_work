@@ -6,9 +6,10 @@ from gurobi import *
 from datetime import datetime
 from mutation import *
 
-config_file = "/Users/ebenbot/Documents/University/cloud_work/genconfig.ini"
+dir_path = os.path.dirname(os.path.realpath(__file__))
+save_dir = os.path.join(dir_path, "saves/")
+config_file = os.path.join(dir_path, "genconfig.ini")
 config = read_configuration(config_file)
-save_dir = get_save_dir(config)
 
 debug_prints, optimize, save, active_models = get_toggles_from_genconfig(config)
 
