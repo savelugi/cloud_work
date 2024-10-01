@@ -23,14 +23,14 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
         random.seed(seed)
 
     players = {}
-    x_start, x_stop = x_range
-    y_start, y_stop = y_range
+    x_min, x_max = x_range
+    y_min, y_max = y_range
     
     for i in range(int(num_players)):
         player_name = f"P{i+1}"
 
-        x = round(random.uniform(x_start, x_stop), 2)
-        y = round(random.uniform(y_start, y_stop), 2)
+        x = round(random.uniform(x_min, x_max), 2)
+        y = round(random.uniform(y_min, y_max), 2)
         device_type = random.choice(['mobile', 'desktop'])
         game = random.choice(['NFS', 'WoW', 'CSGO'])
         if game == 'NFS':
@@ -54,6 +54,26 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
 
     return players
 
+def move_players(players, move_probability, max_move_dist, x_range=(0, 100), y_range=(0, 100), seed=None):
+    if seed is not None:
+        random.seed(seed)
+
+    x_min, x_max = x_range
+    y_min, y_max = y_range
+    
+    for player_name, player_data in players.items():
+        if random.random() < move_probability:
+            delta_x = random.uniform(-max_move_dist, max_move_dist)
+            delta_y = random.uniform(-max_move_dist, max_move_dist)
+            
+            # Staying between the boundaries
+            new_x = min(max(player_data['Latitude'] + delta_x, x_min), x_max)
+            new_y = min(max(player_data['Longitue'] + delta_y, y_min), y_max)
+
+            player_data['Latitude'] = round(new_x, 2)
+            player_data['Longitude'] = round(new_y, 2)
+
+    return players
 
 def generate_servers():
     # Prediktív szerverek pozíciói

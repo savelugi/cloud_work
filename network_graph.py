@@ -3,7 +3,16 @@ import os
 from utils import *
 
 class NetworkGraph:
-    def __init__(self, modelname="", config=None, num_players=0):
+    def __init__(self, modelname="", config=None, num_gen_players=0):
+
+        self.modelname = modelname
+        self.delay_cache = {}  # Initialize an empty cache
+        self.connected_players_info = {}
+        self.player_server_paths = []
+        self.delay_metrics = []
+        self.server_to_player_delays = []
+        self.best_solution = []
+        
         if config is None:
             self.graph = nx.Graph()
             self.server_positions = self.get_server_positions()
@@ -20,21 +29,11 @@ class NetworkGraph:
                 self.long_range, self.lat_range = ranges
             else:
                 print("Error: Unsupported topology")        
-            if num_players > 0:
-                self.num_players = num_players
-                self.players = generate_players(num_players, self.long_range, self.lat_range, self.seed)
+            if num_gen_players > 0:
+                self.num_players = num_gen_players
+                self.players = generate_players(num_gen_players, self.long_range, self.lat_range, self.seed)
                 self.add_players_to_graph(self.players)
 
-        self.modelname = modelname
-
-        self.delay_cache = {}  # Initialize an empty cache
-        self.connected_players_info = {}
-        self.player_server_paths = []
-
-        self.delay_metrics = []
-        self.server_to_player_delays = []
-
-        self.best_solution = []
 
     def load_topology(self, topology_dir):
         self.graph =  nx.read_gml(topology_dir)
@@ -50,17 +49,6 @@ class NetworkGraph:
                 server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
         return server_positions
     
-    # def get_players(self):
-    #     player_positions = []
-    #     for node in self.graph.nodes(data=True):
-    #         node_id = node[0]
-    #         node_data = node[1]
-    #         if 'connected_to_server' in node_data:
-    #             player_positions.append() = float(node_data['Latitude'])
-    #             longitude = float(node_data['Longitude'])
-    #             server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
-    #     return server_positions
-
     
     def add_players_to_graph(self, nodes):
         for node_name, node_info in nodes.items():
