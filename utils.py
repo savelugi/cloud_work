@@ -54,24 +54,24 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
 
     return players
 
-def move_players(players, move_probability, max_move_dist, x_range=(0, 100), y_range=(0, 100), seed=None):
+def move_players(players: dict, move_probability, max_move_dist, x_range=(0, 100), y_range=(0, 100), seed=None):
     if seed is not None:
         random.seed(seed)
 
     x_min, x_max = x_range
     y_min, y_max = y_range
     
-    for player_name, player_data in players.items():
+    for player_id, player_data in players.items():
         if random.random() < move_probability:
             delta_x = random.uniform(-max_move_dist, max_move_dist)
             delta_y = random.uniform(-max_move_dist, max_move_dist)
             
             # Staying between the boundaries
             new_x = min(max(player_data['Latitude'] + delta_x, x_min), x_max)
-            new_y = min(max(player_data['Longitue'] + delta_y, y_min), y_max)
+            new_y = min(max(player_data['Longitude'] + delta_y, y_min), y_max)
 
-            player_data['Latitude'] = round(new_x, 2)
-            player_data['Longitude'] = round(new_y, 2)
+            players[player_id]['Latitude'] = round(new_x, 2)
+            players[player_id]['Longitude'] = round(new_y, 2)
 
     return players
 

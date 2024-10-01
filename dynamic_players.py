@@ -24,3 +24,26 @@ timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Get current timestamp
 
 num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = param_combinations[0]
 network = NetworkGraph(modelname='ilp_sum', config=config, num_gen_players=num_players)
+
+# sum_delay_optimization(
+#                 network=network, 
+#                 server_positions=network.server_positions,
+#                 players=network.players, 
+#                 nr_of_servers=nr_of_servers,
+#                 min_players_connected=min_players_connected, 
+#                 max_connected_players=max_connected_players,              
+#                 max_allowed_delay=max_allowed_delay,
+#                 debug_prints=debug_prints)
+network.color_graph()
+
+#print
+network.draw_graph(title="Graf")
+
+#move
+network.update_player_positions()
+
+#print again
+network.draw_graph(title="Graf")
+
+
+network.display_plots()

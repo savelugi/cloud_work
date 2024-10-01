@@ -1,7 +1,7 @@
 import networkx as nx
 import os
 from utils import *
-
+import matplotlib.pyplot as plt
 class NetworkGraph:
     def __init__(self, modelname="", config=None, num_gen_players=0):
 
@@ -33,6 +33,7 @@ class NetworkGraph:
                 self.num_players = num_gen_players
                 self.players = generate_players(num_gen_players, self.long_range, self.lat_range, self.seed)
                 self.add_players_to_graph(self.players)
+                self.connect_players_to_closest_servers(self.players)
 
 
     def load_topology(self, topology_dir):
@@ -63,14 +64,41 @@ class NetworkGraph:
             }
             self.graph.add_node(node_name, **node_parameters)
 
-        for node in nodes:
-            self.connect_player_to_server(nodes, node, self.server_positions)
+    def connect_players_to_closest_servers(self, players):
+        for player in players:
+            self.connect_player_to_closest_server(players, player, self.server_positions)
 
     
-    def connect_player_to_server(self, players, player_position, server_positions):
-        distance, key = min_distance((players[player_position]['Longitude'], players[player_position]['Latitude']), server_positions)
+    def connect_player_to_closest_server(self, players, player, server_positions):
+        distance, key = min_distance((players[player]['Longitude'], players[player]['Latitude']), server_positions)
         key_list = list(server_positions.keys())
-        self.graph.add_edge(player_position, key_list[int(key)], length=distance)
+        closest_server = key_list[int(key)]
+
+        # we check if the player is already connected to the closest server, 
+        # if not we remove the old connection and connect the new closest
+        current_server = None
+        neighbours = list(self.graph.neighbors(player))
+        if neighbours:
+            current_server = neighbours[0]
+        if current_server:
+            if current_server != closest_server:
+                self.graph.remove_edge(player, current_server)
+                self.graph.add_edge(player, closest_server, length=distance)
+            else:
+                return
+        else:
+            self.graph.add_edge(player, closest_server, length=distance)
+                
+    def update_player_positions(self):
+        moved_players = move_players(players=self.players, move_probability=0.3, max_move_dist=10, x_range=self.long_range, y_range=self.lat_range, seed=self.seed)
+
+        for player_id, player_data in moved_players.items():
+            self.graph.nodes[player_id]['Longitude'] = player_data['Longitude']
+            self.graph.nodes[player_id]['Latitude'] = player_data['Latitude']
+
+        self.connect_players_to_closest_servers(moved_players)
+        self.color_graph()
+
 
     def get_shortest_path_delay(self, node1, node2):
         # Check if the delay for the given nodes is already cached
@@ -160,6 +188,15 @@ class NetworkGraph:
         
         full_save_path = os.path.join(folder_path, save_name)
 
+        # Color the graph nodes and edges before saving
+        self.color_graph()
+
+        # Save the graph to a GML file
+        nx.write_gml(self.graph, full_save_path+".gml")
+
+        return save_path
+    
+    def color_graph(self):
         selected_servers = []
         for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
@@ -181,10 +218,6 @@ class NetworkGraph:
         nx.set_node_attributes(self.graph, node_colors, 'color')
         nx.set_edge_attributes(self.graph, edge_colors, 'color')
 
-        # Save the graph to a GML file
-        nx.write_gml(self.graph, full_save_path+".gml")
-
-        return save_path
 
     def save_ga_graph(self, save_name, params):
         save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
@@ -341,3 +374,30 @@ class NetworkGraph:
         self.connected_players_info = connected_players_to_server
         self.player_server_paths = player_server_paths
         return True
+
+    def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6)):
+
+        graph = self.graph
+        # Get node and edge attributes for colors
+        node_colors = nx.get_node_attributes(graph, 'color')
+        edge_colors = nx.get_edge_attributes(graph, 'color')
+        
+        # Set edge widths based on edge color
+        edge_width = [2.0 * edge_width_factor if edge_colors[edge] == 'red' else 1.0 * edge_width_factor for edge in graph.edges()]
+        
+        # Define node positions using Latitude and Longitude attributes
+        pos = {node: (float(graph.nodes[node]['Longitude']), float(graph.nodes[node]['Latitude'])) for node in graph.nodes() if 'Latitude' in graph.nodes[node] and 'Longitude' in graph.nodes[node]}
+
+        # Plot the graph
+        plt.figure(figsize=figsize)  # Ábra méretének beállítása
+
+        nx.draw(graph, pos, with_labels=True, node_color=list(node_colors.values()), edge_color=list(edge_colors.values()), node_size=node_size, width=edge_width)
+        # Optionally display edge labels for distances
+        if show_edge_labels:
+            edge_labels = {(player, server): round(graph[player][server]["length"],1) for player, server in graph.edges()}
+            nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+
+        plt.title(title, y=-0.01, fontsize="19")
+
+    def display_plots(self):
+        plt.show()

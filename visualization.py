@@ -20,33 +20,30 @@ model_columns = {
 class Visualization:
     def __init__(self, network_graph):
         self.network_graph = network_graph
-        #self.positions = {network_graph.server_positions, network_graph.players}
 
-    def draw_graph(self, pos, servers, players, canvas_size, node_size=200, show_edge_labels=False):
-        # Close all existing Matplotlib figures
-        #plt.close('all')
+    def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6)):
 
-        plt.figure(figsize=canvas_size)
+        graph = self.network_graph.graph
+        # Get node and edge attributes for colors
+        node_colors = nx.get_node_attributes(graph, 'color')
+        edge_colors = nx.get_edge_attributes(graph, 'color')
         
-        # Szerverek kirajzolása
-        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=servers.keys(), node_color='b', node_size=2.5*node_size)
-        # Játékosok kirajzolása
-        nx.draw_networkx_nodes(self.network_graph.graph, pos, nodelist=players.keys(), node_color='g', node_size=node_size)
+        # Set edge widths based on edge color
+        #edge_width = [2.0 * edge_width_factor if edge_colors[edge] == 'red' else 1.0 * edge_width_factor for edge in graph.edges()]
+        edge_width = 1.0
+        # Define node positions using Latitude and Longitude attributes
+        pos = {node: (float(graph.nodes[node]['Longitude']), float(graph.nodes[node]['Latitude'])) for node in graph.nodes() if 'Latitude' in graph.nodes[node] and 'Longitude' in graph.nodes[node]}
 
-        # Élek kirajzolása
-        nx.draw_networkx_edges(self.network_graph.graph, pos, edgelist=self.network_graph.graph.edges(), width=1.0, alpha=0.5)
+        # Plot the graph
+        plt.figure(figsize=figsize)  # Ábra méretének beállítása
 
-        # Él súlyok (távolságok) hozzáadása
+        nx.draw(graph, pos, with_labels=True, node_color=list(node_colors.values()), edge_color=list(edge_colors.values()), node_size=node_size, width=edge_width)
+        # Optionally display edge labels for distances
         if show_edge_labels:
-            edge_labels = {(player, server): round(self.network_graph.graph[player][server]["length"],2) for player, server in self.network_graph.graph.edges}
-            nx.draw_networkx_edge_labels(self.network_graph.graph, pos, edge_labels=edge_labels)
+            edge_labels = {(player, server): round(graph[player][server]["length"],1) for player, server in graph.edges()}
+            nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
 
-        # Címkék hozzáadása a csomópontokhoz
-        node_labels = {node: node for node in self.network_graph.graph.nodes}
-       # nx.draw_networkx_labels(self.network_graph.graph, pos, labels=node_labels)
-
-        # Kirajzolás beállításai
-        plt.title("Szerverek és Játékosok")
+        plt.title(title, y=-0.01, fontsize="19")
 
     def draw_paths(self, player_server_paths, servers, selected_servers, players, canvas_size, node_size=200, show_edge_labels=False, title='title'):
         plt.figure(figsize=canvas_size)
