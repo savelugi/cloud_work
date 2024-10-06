@@ -50,6 +50,20 @@ class NetworkGraph:
                 server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
         return server_positions
     
+    def get_closest_servers(self, node):
+        closest_servers = []
+        neighbours = list(self.graph.neighbors(node))
+
+        if neighbours is None:
+            print("Node has no neighbours!")
+            return None
+        
+        for neighbour in neighbours:
+            if neighbour.isdigit():
+                closest_servers.append(neighbour)
+                
+        return closest_servers
+    
     
     def add_players_to_graph(self, nodes):
         for node_name, node_info in nodes.items():
@@ -89,8 +103,15 @@ class NetworkGraph:
         else:
             self.graph.add_edge(player, closest_server, length=distance)
                 
-    def update_player_positions(self):
-        moved_players = move_players(players=self.players, move_probability=0.3, max_move_dist=10, x_range=self.long_range, y_range=self.lat_range, seed=self.seed)
+    def update_player_positions(self, debug_prints):
+        moved_players = move_players(
+                                    players=self.players, 
+                                    move_probability=0.3, 
+                                    max_move_dist=10, 
+                                    x_range=self.long_range, 
+                                    y_range=self.lat_range, 
+                                    seed=self.seed, 
+                                    debug_prints=debug_prints)
 
         for player_id, player_data in moved_players.items():
             self.graph.nodes[player_id]['Longitude'] = player_data['Longitude']
@@ -98,7 +119,27 @@ class NetworkGraph:
 
         self.connect_players_to_closest_servers(moved_players)
         self.color_graph()
+        self.clear_delay_cache()
 
+
+    def migrate_edge_servers_if_beneficial(self, player):
+       # TODO: very csunya, ne igy csinald!#############
+        from mutation import convert_ILP_to_chromosome, chromosome_to_uniform_population
+       #                                               #
+        current_server = self.graph.nodes[player]['connected_to_server']
+
+        if self.server_to_player_delays is None:
+            print("Server to player delays wasn't calculated yet!")
+            return
+        
+        for playerinlist, server, latency in self.server_to_player_delays:
+            if player == playerinlist:
+                current_latency = latency
+
+        
+        chromosome_to_uniform_population(convert_ILP_to_chromosome(self.server_to_player_delays))
+
+        
 
     def get_shortest_path_delay(self, node1, node2):
         # Check if the delay for the given nodes is already cached
@@ -124,6 +165,10 @@ class NetworkGraph:
             return path
         except nx.NetworkXNoPath:
             print(f"No path between {node1} and {node2}!")
+
+    def clear_delay_cache(self):
+        #can be done better (deleting only the moved players from the delay cache)
+        return(self.delay_cache.clear())
         
     def print_path_delay(self, node1, node2):
         try:

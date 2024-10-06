@@ -16,6 +16,25 @@ def initial_population(players, servers, population_size):
         population.append(chromosome)
     return population
 
+def convert_ILP_to_chromosome(player_server_list):
+    chromosome = []
+
+    # int(x[0][1:]) is 'n' in 'Pn', i.e 12 in P12
+    sorted_player_server_list = sorted(player_server_list, key=lambda x: int(x[0][1:]))
+
+    for _, server, _ in sorted_player_server_list:
+        chromosome.append(server)
+
+    return chromosome
+        
+def chromosome_to_uniform_population(chromosome, population_size):
+    population = []
+
+    for _ in range(population_size):
+        population.append(chromosome)
+
+    return population
+
 def enforce_min_max_players_per_server(chromosome, max_connected_players, min_connected_players):
     server_counts = {server: 0 for server in set(chromosome)}
     for server in chromosome:
@@ -150,7 +169,6 @@ def fitness_sum_ipd(network: NetworkGraph, chromosome, players, init_fitnesses, 
 
 
 def fitness(network: NetworkGraph, chromosome, players, method, init_fitnesses=None, ratio=6):
-    # Az általános függvény, amely dönti el, hogy melyik fitness függvényt kell használni
     if method == 'ipd':
         return fitness_ipd(network, chromosome, players)
     elif method == 'sum':
@@ -316,13 +334,17 @@ def calculate_init_fitness(network, players, init_population, method):
     return max_fitness
 
 def genetic_algorithm(network: NetworkGraph, players, servers, population_size, mutation_rate, generations, min_connected_players, max_connected_players, max_server_nr, 
-                      selection_strategy="tournament", tournament_size=None, fitness_method='ipd', crossover_method='uniform', ratio=6):
+                      selection_strategy="tournament", tournament_size=None, fitness_method='ipd', crossover_method='uniform', ratio=6, debug_prints=True, initial_pop=None):
     
-    #best_fitnesses = []
-    #average_fitnesses = []
-    cntr = 0
+    if debug_prints:
+        cntr = 0
 
-    population = initial_population(players, servers, population_size)
+    if initial_pop is None:
+        if debug_prints:
+            print("Initial population wasn't passed, generating random population!")
+        population = initial_population(players, servers, population_size)
+    else:
+        population = chromosome_to_uniform_population(initial_pop, population_size)
 
     if fitness_method == 'sum_ipd':
         # calculating maximums to normalize fitness functions
@@ -331,7 +353,9 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
         init_fitnesses = (init_sum_fitness, init_ipd_fitness)
 
     for _ in range(int(generations)):
-        cntr += 1
+        if debug_prints:
+            cntr += 1
+
         if fitness_method == 'sum_ipd':
             fitness_values = [fitness(network, tuple(chromosome), tuple(players), fitness_method, init_fitnesses, ratio) for chromosome in population]
         else:
@@ -341,7 +365,7 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 
         best_fitness = fitness_values[population.index(best_solution)]
 
-        if cntr >= 10:
+        if debug_prints and cntr >= 10:
             cntr = 0
             print("Fitness: ", best_fitness)
 

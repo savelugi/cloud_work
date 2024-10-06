@@ -37,7 +37,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_rank_single'
         if 'sum_rank_single' in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -75,7 +75,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_rank_multi'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -112,7 +112,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_rank_unif'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -149,7 +149,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_tournament_single'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -188,7 +188,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_tournament_multi'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -227,7 +227,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_tournament_unif'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -265,7 +265,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_roulette_single'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -303,7 +303,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_roulette_multi'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
@@ -338,7 +338,7 @@ if optimize:
 ######################################################################################################################################################
         modelname = 'sum_roulette_unif'
         if modelname in active_models:
-            network = NetworkGraph(modelname=modelname, config=config, num_players=num_players)
+            network = NetworkGraph(modelname=modelname, config=config, num_gen_players=num_players)
             timer.start()
             optimization_has_run = genetic_algorithm(
                 network=network,
