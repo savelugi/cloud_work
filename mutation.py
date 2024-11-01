@@ -35,104 +35,88 @@ def chromosome_to_uniform_population(chromosome, population_size):
 
     return population
 
-def enforce_min_max_players_per_server(chromosome, max_connected_players, min_connected_players):
-    server_counts = {server: 0 for server in set(chromosome)}
+def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_connected_players, min_connected_players, migrate_to_edge_servers=False):
+    # TODO: currently only limits the max players
+    player_count_on_servers = {server: 0 for server in network._only_servers}
     for server in chromosome:
-        server_counts[server] += 1
+        player_count_on_servers[server] += 1
 
-    for server, count in server_counts.items():
-        if count > int(max_connected_players):
+    for server, player_count in player_count_on_servers.items():
+        if player_count > int(max_connected_players): #or player_count < int(min_connected_players):
             # Find indices of players connected to this server
-            indices = [i for i, s in enumerate(chromosome) if s == server]
-            # Randomly shuffle the indices to randomize the selection
-            # TODO: itt az a gond, hogy azokat a jatekosokat amelyeket eldob a szerver, azok is random valasztodnak ki,
-            #       itt azokat kene eldobja a szerver amelyeknek a legnagyobb a kesleltetesuk
-            default_random.shuffle(indices)
-            # Take the first max_connected_players indices to keep
-            drop_indices = indices[int(max_connected_players):]
+            connected_players = [i for i, s in enumerate(chromosome) if s == server]
 
-            # Determine servers with the second most players
-            # TODO: itt az a baj hogy arra a szerverre helyezi at amelyen a masodik legtobb jatekos van, nem pedig arra a szerverre,
-            #       amely helyileg a legkozelebb van
-            sorted_counts = sorted(set(server_counts.values()), reverse=True)
-            second_max_count = sorted_counts[1] if len(sorted_counts) > 1 else sorted_counts[0]
-            second_max_player_servers = [srv for srv, cnt in server_counts.items() if cnt == second_max_count]
+            # Sort connected players by shortest path delay
+            sorted_connected_players = sorted(connected_players, key=lambda x: network.get_shortest_path_delay(f"P{x+1}", server))
 
-            # Move dropped players to servers with the fewest players
-            for idx in drop_indices:
-                for srv in second_max_player_servers:
-                    if server_counts[srv] < int(max_connected_players):
+            drop_connected_player_indices = sorted_connected_players[int(max_connected_players):]
+            
+            # try to move the excess players to the closest server, if possible, if the server is already full try the second neighbor
+            closest_servers = network.get_closest_servers(server)
+
+            if migrate_to_edge_servers:
+                for srv in closest_servers:
+                    if not network.is_edge_server(srv):
+                        closest_servers.remove(srv)
+                if not closest_servers:
+                    print(f"There are no edge servers near {server}, returnin!")
+                    return
+
+            # Move dropped players to nearest servers
+            iter = drop_connected_player_indices.copy()
+            for idx in iter:
+                for srv in closest_servers:
+                    if player_count_on_servers[srv] < int(max_connected_players): #and player_count_on_servers[srv] >= int(min_connected_players):
                         chromosome[idx] = srv
-                        server_counts[srv] += 1
-                        server_counts[server] -=1
+                        player_count_on_servers[srv] += 1
+                        player_count_on_servers[server] -=1
                         break
+                drop_connected_player_indices.remove(idx)
 
-    # Ensure minimum number of players per server
-    # TODO: ez nem mukodik tokeletesen
-    for server, count in server_counts.items():
-        if count < int(min_connected_players):
-            # Find indices of players connected to this server
-            indices = [i for i, s in enumerate(chromosome) if s == server]
-            # Randomly shuffle the indices to randomize the selection
-            default_random.shuffle(indices)
-            # Take the first min_connected_players indices to fill
-            fill_indices = indices[:int(min_connected_players) - count]
+            # if the nearest servers are full, move the dropped player(s) to the server with second most players
+            while len(drop_connected_player_indices) > 0:
+                iter = drop_connected_player_indices.copy()
+                # Determine servers with the second most players
+                second_most_player_count = sorted(player_count_on_servers.values())[-2]
+                second_most_players_on_servers = [srv for srv, cnt in player_count_on_servers.items() if cnt == second_most_player_count]
 
-            # Determine servers with the fewest players
-            min_count = min(server_counts.values())
-            min_player_servers = [srv for srv, cnt in server_counts.items() if cnt == min_count]
-
-            # Move players from other servers to fill empty slots
-            # TODO: itt az a baj hogy arra a szerverre helyezi at amelyen a legkevesebb jatekos van, nem pedig arra a szerverre,
-            #       amely helyileg a legkozelebb van
-
-            for idx in fill_indices:
-                for srv in min_player_servers:
-                    if server_counts[srv] < int(max_connected_players):
-                        chromosome[idx] = srv
-                        server_counts[srv] += 1
-                        server_counts[server] -= 1
-                        break
+                for idx in iter:
+                    for srv in second_most_players_on_servers:
+                        if player_count_on_servers[srv] < int(max_connected_players):
+                            chromosome[idx] = srv
+                            player_count_on_servers[srv] += 1
+                            player_count_on_servers[server] -=1
+                            break
+                    drop_connected_player_indices.remove(idx)
 
     return chromosome
 
-def enforce_max_server_occurrences(chromosome, max_server_nr):
+def enforce_max_server_occurrences(network: NetworkGraph, chromosome, max_server_nr):
     server_counts = {}
     for server in set(chromosome):
         server_counts[server] = chromosome.count(server)
 
-    # Ha kevesebb szerver van, mint a maximum megengedett, akkor nincs teendő
     if len(server_counts) <= int(max_server_nr):
         return chromosome
 
-    # Túl sok szerver van, szükség van a csökkentésre
-    # TODO: megoldani hogy ne shuffle szerint dobjuk ki a felesleges szervereket, mivel igy a jo szervereket is eldobhatjuk
-    #       helyette mondjuk a szerverszamok szerint kene sorbarendezni oket es eldobni azokat a szervereket amelyken keves 
-    #       jatekos van
     servers = [server for server, count in server_counts.items() if count >= 1]
     default_random.shuffle(servers)
 
-    # Csak az első max_server_nr szükséges
     servers_to_keep = servers[:int(max_server_nr)]
 
-    # Távolítsuk el azokat a szervereket, amelyek nem kellenek
-    chromosome = [server if server in servers_to_keep else None for server in chromosome]
-
-    # Távolítsuk el a None értékeket
-    chromosome = [server if server is not None else default_random.choice(servers_to_keep) for server in chromosome]
+    chromosome = [server if server in servers_to_keep else default_random.choice(servers_to_keep) for server in chromosome]
 
     return chromosome
 
 @lru_cache(maxsize=None)
-def fitness_sum(network: NetworkGraph, chromosome, players):
+def fitness_sum(network: NetworkGraph, chromosome):
     sum_delays = 0
-    for i, server in enumerate(chromosome):
-        player = players[i]
-        sum_delays += network.get_shortest_path_delay(player, server)
+    for player_index, server in enumerate(chromosome):
+        sum_delays += network.get_shortest_path_delay(f"P{player_index+1}", server)
     return sum_delays
 
 @lru_cache(maxsize=None)
-def fitness_ipd(network: NetworkGraph, chromosome, players):
+def fitness_ipd(network: NetworkGraph, chromosome):
     max_value = 0
     delay = 0
 
@@ -162,19 +146,19 @@ def fitness_ipd(network: NetworkGraph, chromosome, players):
 def fitness_sum_ipd(network: NetworkGraph, chromosome, players, init_fitnesses, ratio):
     max_sum_fitness, max_ipd_fitness = init_fitnesses
 
-    normalized_sum_delay = fitness_sum(network, chromosome, players) / max_sum_fitness
-    normalized_max_ipd = fitness_ipd(network, chromosome, players) / max_ipd_fitness
+    normalized_sum_delay = fitness_sum(network, chromosome) / max_sum_fitness
+    normalized_max_ipd = fitness_ipd(network, chromosome) / max_ipd_fitness
 
     return ratio * 0.1 * normalized_sum_delay + (10 - ratio) * 0.1 * normalized_max_ipd
 
 
-def fitness(network: NetworkGraph, chromosome, players, method, init_fitnesses=None, ratio=6):
+def fitness(network: NetworkGraph, chromosome, method, init_fitnesses=None, ratio=6):
     if method == 'ipd':
-        return fitness_ipd(network, chromosome, players)
+        return fitness_ipd(network, chromosome)
     elif method == 'sum':
-        return fitness_sum(network, chromosome, players)
+        return fitness_sum(network, chromosome)
     elif method == 'sum_ipd':
-        return fitness_sum_ipd(network, chromosome, players, init_fitnesses, ratio)
+        return fitness_sum_ipd(network, chromosome, init_fitnesses, ratio)
     else:
         raise ValueError("Invalid fitness method. Choose from 'sum', 'ipd', 'sum_ipd'.")
 
@@ -227,36 +211,79 @@ def crossover(parent1, parent2, method='single_point'):
     else:
         raise ValueError("Invalid crossover method. Choose from 'single_point', 'uniform', or 'multi_point'.")
 
-def mutate(chromosome, mutation_rate, servers, method='mut_servers'):
+def mutate(network, chromosome, mutation_rate, servers, method='mut_servers'):
     if method == 'mut_servers':
-        return mutate_servers(chromosome, mutation_rate, servers)
+        return mutate_servers(network, chromosome, mutation_rate, method='move_to_neighbours')
     elif method == 'mut_players':
         return mutate_players(chromosome, mutation_rate, servers)
     else:
         raise ValueError("Invalid mutation method. Choose from 'mut_servers', or 'mut_players'.")
 
 
-def mutate_servers(chromosome, mutation_rate, servers):
-    mutated_chromosome = chromosome[:]
+def mutate_servers(network: NetworkGraph, chromosome, mutation_rate, method='move_to_neighbours'):
+    if method == 'increment_or_decrement':
+
+        mutated_chromosome = chromosome.copy()
+        unique_servers = list(set(chromosome))
+
+        for server in unique_servers:
+            if default_random.random() < mutation_rate:
+                if int(server) < (len(servers) - 1):
+                    incr = str(int(server) + 1)
+                else:
+                    decr = str(int(server) - 1)
+                    incr = decr
+                if int(server) == 0:
+                    decr = str(1)
+                else:
+                    decr = str(int(server) - 1)
+
+                new_server = default_random.choice([incr, decr])
+
+                for i in range(len(mutated_chromosome)):
+                    if mutated_chromosome[i] == server:
+                        mutated_chromosome[i] = new_server
+        return mutated_chromosome
+    
+    elif method == 'move_to_neighbours':
+
+        mutated_chromosome = chromosome.copy()
+        unique_servers = list(set(chromosome))
+
+        for server in unique_servers:
+            if default_random.random() < mutation_rate:
+                closest_servers = network.get_closest_servers(server)
+                new_server = default_random.choice(closest_servers)
+
+                for i in range(len(mutated_chromosome)):
+                    if mutated_chromosome[i] == server:
+                        mutated_chromosome[i] = new_server
+
+        return mutated_chromosome
+
+    else:
+        print(f"Method type: {method} is not found!")
+
+def mutate_edge_servers(network: NetworkGraph, chromosome, mutation_rate):
+    mutated_chromosome = chromosome.copy()
     unique_servers = list(set(chromosome))
 
     for server in unique_servers:
         if default_random.random() < mutation_rate:
-            if int(server) < len(servers):
-                incr = str(int(server) + 1)
+            closest_edge_servers = network.get_closest_servers(server)
+            for srv in closest_edge_servers:
+                if not network.is_edge_server(srv):
+                    closest_edge_servers.remove(srv)
+            if closest_edge_servers:
+                new_server = default_random.choice(closest_edge_servers)
             else:
-                decr = str(int(server) - 1)
-                incr = decr
-            if int(server) == 0:
-                decr = str(1)
-            else:
-                decr = str(int(server) - 1)
-
-            new_server = default_random.choice([incr, decr])
+                # we can't move to an edge server so we return
+                return chromosome
 
             for i in range(len(mutated_chromosome)):
                 if mutated_chromosome[i] == server:
                     mutated_chromosome[i] = new_server
+
     return mutated_chromosome
 
 def mutate_players(chromosome, mutation_rate, servers):
@@ -374,14 +401,14 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
         while len(offspring) < population_size - len(parents):
             parent1, parent2 = default_random.sample(parents, 2)
             child1, child2 = crossover(parent1, parent2, method=crossover_method)
-            child1 = mutate(child1, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
-            child2 = mutate(child2, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
+            child1 = mutate(network, child1, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
+            child2 = mutate(network, child2, mutation_rate, servers, method=default_random.choice(['mut_players', 'mut_servers']))
 
             # Enforce boundaries
-            child1 = enforce_max_server_occurrences(child1, max_server_nr)
-            child1 = enforce_min_max_players_per_server(child1, max_connected_players, min_connected_players)
-            child2 = enforce_max_server_occurrences(child2, max_server_nr)
-            child2 = enforce_min_max_players_per_server(child2, max_connected_players, min_connected_players)
+            child1 = enforce_max_server_occurrences(network, child1, max_server_nr)
+            child1 = enforce_min_max_players_per_server(network, child1, max_connected_players, min_connected_players)
+            child2 = enforce_max_server_occurrences(network, child2, max_server_nr)
+            child2 = enforce_min_max_players_per_server(network, child2, max_connected_players, min_connected_players)
 
             offspring.extend([child1, child2])
 
@@ -389,29 +416,7 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 
     sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
     best_solution = sorted_pop[0]
-
-    # Retrieve the selected servers and connected players
-    connected_players_to_server = {}  
-    for player_index, server_index in enumerate(best_solution):
-        if server_index not in connected_players_to_server:
-             connected_players_to_server[server_index] = []
-
-        connected_players_to_server[server_index].append(f"P{player_index+1}")
-        network.graph.nodes[str(server_index)]['server']['game_server'] = 1
-        network.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
-
-
-    player_server_paths = []
-    for server_idx, connected_players_list in connected_players_to_server.items():
-        if connected_players_list:
-            for player in connected_players_list:
-                path = network.get_shortest_path(player, server_idx)
-                player_server_paths.append((player, server_idx, path))
-
-    #return best_solution, best_fitnesses, average_fitnesses, connected_players_to_server, player_server_paths
-    network.connected_players_info = connected_players_to_server
-    network.player_server_paths = player_server_paths
-    network.best_solution = best_solution
+    network.set_player_server_metrics(best_solution)
 
     return True
 

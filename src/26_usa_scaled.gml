@@ -7,10 +7,11 @@ graph [
     Longitude -80.83
     City "Charlotte"
     server [
-      type "core"
+      type "edge"
       cpu 32
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -20,10 +21,11 @@ graph [
     Longitude -84.41
     City "Atlanta"
     server [
-      type "core"
+      type "edge"
       cpu 64
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -33,10 +35,11 @@ graph [
     Longitude -86.16
     City "Indianapolis"
     server [
-      type "edge"
+      type "core"
       cpu 32
       memory 8
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -46,10 +49,11 @@ graph [
     Longitude -97.52
     City "Oklahoma City"
     server [
-      type "edge"
+      type "core"
       cpu 16
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -63,6 +67,7 @@ graph [
       cpu 128
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -72,10 +77,11 @@ graph [
     Longitude -94.58
     City "Kansas City"
     server [
-      type "edge"
+      type "core"
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -89,6 +95,7 @@ graph [
       cpu 8
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -102,6 +109,7 @@ graph [
       cpu 64
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -115,6 +123,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -124,10 +133,11 @@ graph [
     Longitude -122.41
     City "San Francisco"
     server [
-      type "core"
+      type "edge"
       cpu 48
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -141,6 +151,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -154,6 +165,7 @@ graph [
       cpu 128
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -163,10 +175,11 @@ graph [
     Longitude -95.35
     City "Houston"
     server [
-      type "core"
+      type "edge"
       cpu 128
       memory 128
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -176,10 +189,11 @@ graph [
     Longitude -90.11
     City "New Orleans"
     server [
-      type "core"
+      type "edge"
       cpu 48
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -189,10 +203,11 @@ graph [
     Longitude -80.22
     City "Miami"
     server [
-      type "core"
+      type "edge"
       cpu 128
       memory 128
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -206,6 +221,7 @@ graph [
       cpu 64
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -215,10 +231,11 @@ graph [
     Longitude -73.99
     City "New York"
     server [
-      type "core"
+      type "edge"
       cpu 48
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -228,10 +245,11 @@ graph [
     Longitude -71.06
     City "Boston"
     server [
-      type "core"
+      type "edge"
       cpu 32
       memory 256
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -245,6 +263,7 @@ graph [
       cpu 16
       memory 16
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -254,10 +273,11 @@ graph [
     Longitude -81.69
     City "Cleveland"
     server [
-      type "edge"
+      type "core"
       cpu 8
       memory 16
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -271,6 +291,7 @@ graph [
       cpu 32
       memory 64
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -284,6 +305,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -297,6 +319,7 @@ graph [
       cpu 8
       memory 64
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -310,6 +333,7 @@ graph [
       cpu 16
       memory 32
       gpu 0
+      game_server -1
     ]
   ]
   node [
@@ -319,10 +343,11 @@ graph [
     Longitude -86.77
     City "Nashville"
     server [
-      type "core"
+      type "edge"
       cpu 64
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   node [
@@ -336,6 +361,7 @@ graph [
       cpu 32
       memory 256
       gpu 1
+      game_server -1
     ]
   ]
   edge [

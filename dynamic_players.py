@@ -41,33 +41,67 @@ network.get_closest_servers('3')
 network.draw_graph(title="Graf")
 
 #move
-for i in range(12):
-    network.update_player_positions(debug_prints=True)
+for i in range(120):
+    #for i in range(num_players):
+    i = 1
+    network.move_player_diagonally(f'P{i+1}', dist=-1, debug_prints=False)
 
 
 initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
 
-genetic_algorithm(
-                    network=network,
-                    players=list(network.players),
-                    servers=network._only_servers,
-                    population_size=len(network.players),
-                    mutation_rate=0.01,
-                    generations=100,
-                    min_connected_players=min_players_connected,
-                    max_connected_players=max_connected_players,
-                    max_server_nr=nr_of_servers,
-                    selection_strategy="rank_based",
-                    fitness_method='sum',
-                    crossover_method='single_point',
-                    #ratio=6,
-                    debug_prints=True,
-                    initial_pop=initial_chromosome
-                )
-            
+population_size = 100
+population = chromosome_to_uniform_population(initial_chromosome, population_size)
 
+network.clear_game_servers()
+
+generations = 500
+for _ in range(int(generations)):
+    fitness_method='sum'
+    fitness_values = [fitness(network, tuple(chromosome), fitness_method) for chromosome in population]
+    
+    sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
+    best_solution = sorted_pop[0]
+    best_fitness = fitness_values[population.index(best_solution)]
+
+    selection_strategy = 'rank_based'
+    tournament_size = '5'
+    parents = selection(population, fitness_values, selection_strategy, tournament_size)
+    offspring = []
+    while len(offspring) < population_size - len(parents):
+        parent1, parent2 = default_random.sample(parents, 2)
+        crossover_method = 'single_point'
+        child1, child2 = crossover(parent1, parent2, method=crossover_method)
+        mutatiod_method = 'mut_servers'
+        mutation_rate = 0.1
+        child1 = mutate_edge_servers(network, child1, mutation_rate)
+        child2 = mutate_edge_servers(network, child2, mutation_rate)
+
+        # Enforce boundaries
+        max_server_nr = 3
+        max_connected_players = 24
+        min_connected_players = 4
+
+        child1 = enforce_max_server_occurrences(network, child1, max_server_nr)
+        child1 = enforce_min_max_players_per_server(network, child1, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
+
+        child2 = enforce_max_server_occurrences(network, child2, max_server_nr)
+        child2 = enforce_min_max_players_per_server(network, child2, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
+
+        offspring.extend([child1, child2])
+
+    population = parents + offspring
+
+sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
+best_solution = sorted_pop[0]
+
+network.set_player_server_metrics(best_solution)
+
+network.color_graph()
+        
 #print again
 network.draw_graph(title="Graf")
 
 
 network.display_plots()
+
+print("end")

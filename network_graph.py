@@ -23,6 +23,7 @@ class NetworkGraph:
             self.graph = nx.read_gml(topology_file)
             self.server_positions = self.get_server_positions()
             self._only_servers = list(self.graph.nodes)
+            self.edge_servers = self.get_edge_servers()
 
             ranges = get_lat_long_range(config)
             if ranges is not None:
@@ -47,7 +48,7 @@ class NetworkGraph:
             if 'Latitude' in node_data and 'Longitude' in node_data:
                 latitude = float(node_data['Latitude'])
                 longitude = float(node_data['Longitude'])
-                server_positions[node_id] = (longitude, latitude)  # A pozíció sorrendje longitude, latitude
+                server_positions[node_id] = (longitude, latitude)
         return server_positions
     
     def get_closest_servers(self, node):
@@ -80,11 +81,11 @@ class NetworkGraph:
 
     def connect_players_to_closest_servers(self, players):
         for player in players:
-            self.connect_player_to_closest_server(players, player, self.server_positions)
+            self.connect_player_to_closest_server(player, self.server_positions)
 
     
-    def connect_player_to_closest_server(self, players, player, server_positions):
-        distance, key = min_distance((players[player]['Longitude'], players[player]['Latitude']), server_positions)
+    def connect_player_to_closest_server(self, player, server_positions):
+        distance, key = min_distance((self.graph.nodes[player]['Longitude'], self.graph.nodes[player]['Latitude']), server_positions)
         key_list = list(server_positions.keys())
         closest_server = key_list[int(key)]
 
@@ -92,8 +93,10 @@ class NetworkGraph:
         # if not we remove the old connection and connect the new closest
         current_server = None
         neighbours = list(self.graph.neighbors(player))
+
         if neighbours:
             current_server = neighbours[0]
+
         if current_server:
             if current_server != closest_server:
                 self.graph.remove_edge(player, current_server)
@@ -102,15 +105,29 @@ class NetworkGraph:
                 return
         else:
             self.graph.add_edge(player, closest_server, length=distance)
+
+    def is_edge_server(self, server):
+        if self.graph.nodes[server]['server']['type'] == "edge":
+            return True
+        else:
+            return False
+        
+    def get_edge_servers(self):
+        edge_servers = []
+        for server in self._only_servers:
+            if self.is_edge_server(server):
+                edge_servers.append(server)
+        
+        return edge_servers
                 
-    def update_player_positions(self, debug_prints):
-        moved_players = move_players(
+    def update_player_positions(self, debug_prints, seed):
+        moved_players = move_players_randomly(
                                     players=self.players, 
                                     move_probability=0.3, 
                                     max_move_dist=10, 
                                     x_range=self.long_range, 
                                     y_range=self.lat_range, 
-                                    seed=self.seed, 
+                                    seed=seed, 
                                     debug_prints=debug_prints)
 
         for player_id, player_data in moved_players.items():
@@ -121,11 +138,42 @@ class NetworkGraph:
         self.color_graph()
         self.clear_delay_cache()
 
+    def move_player_horizontally(self, player_id, dist, debug_prints=False):
+        x_min, x_max = self.lat_range
+
+        # Staying between the boundaries
+        new_x = min(max(self.graph.nodes[player_id]['Longitude'] + dist, x_min), x_max)
+
+        if debug_prints:
+            print(f"Moving player {player_id}: from ({self.graph.nodes[player_id]['Longitude']}, {self.graph.nodes[player_id]['Latitude']}) to ({new_x}, {self.graph.nodes[player_id]['Latitude']})")
+
+        self.graph.nodes[player_id]['Longitude'] = new_x
+
+        self.connect_player_to_closest_server(player_id, self.server_positions)
+        self.clear_delay_cache()
+
+    def move_player_vertically(self, player_id, dist, debug_prints=False):
+        y_min, y_max = self.long_range
+
+        # Staying between the boundaries
+        new_y = min(max(self.graph.nodes[player_id]['Latitude'] + dist, y_min), y_max)
+
+        if debug_prints:
+            print(f"Moving player {player_id}: from ({self.graph.nodes[player_id]['Longitude']}, {self.graph.nodes[player_id]['Latitude']}) to ({self.graph.nodes[player_id]['Longitude']}, {new_y})")
+
+        self.graph.nodes[player_id]['Latitude'] = new_y
+
+        self.connect_player_to_closest_server(player_id, self.server_positions)
+        self.clear_delay_cache()
+
+    def move_player_diagonally(self, player_id, dist, debug_prints=False):
+        self.move_player_horizontally(player_id, dist, debug_prints)
+        self.move_player_vertically(player_id, dist, debug_prints)
 
     def migrate_edge_servers_if_beneficial(self, player):
        # TODO: very csunya, ne igy csinald!#############
         from mutation import convert_ILP_to_chromosome, chromosome_to_uniform_population
-       #                                               #
+
         current_server = self.graph.nodes[player]['connected_to_server']
 
         if self.server_to_player_delays is None:
@@ -139,7 +187,6 @@ class NetworkGraph:
         
         chromosome_to_uniform_population(convert_ILP_to_chromosome(self.server_to_player_delays))
 
-        
 
     def get_shortest_path_delay(self, node1, node2):
         # Check if the delay for the given nodes is already cached
@@ -167,9 +214,17 @@ class NetworkGraph:
             print(f"No path between {node1} and {node2}!")
 
     def clear_delay_cache(self):
-        #can be done better (deleting only the moved players from the delay cache)
+        # this can be done better (deleting only the moved players from the delay cache)
         return(self.delay_cache.clear())
-        
+    
+    def clear_game_servers(self):
+        # this can be done better if we are clearing only the field from the moved servers
+        # the game_server is initialized to -1 so by setting it to 0 we know that it was a game server at some point
+        for srv_idx in self._only_servers:
+            if self.graph.nodes[srv_idx]['server']['game_server'] == 1:
+                self.graph.nodes[srv_idx]['server']['game_server'] = 0
+            
+
     def print_path_delay(self, node1, node2):
         try:
             delay = nx.shortest_path_length(self.graph, node1, node2, weight='length')
@@ -215,6 +270,28 @@ class NetworkGraph:
                         between = (server1, server2)
         return [max_delay, between]
     
+    def set_player_server_metrics(self, solution):
+        connected_players_to_server = {}
+        for player_index, server_index in enumerate(solution):
+            if server_index not in connected_players_to_server:
+                connected_players_to_server[server_index] = []
+
+            connected_players_to_server[server_index].append(f"P{player_index+1}")
+            self.graph.nodes[str(server_index)]['server']['game_server'] = 1
+            self.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
+
+
+        player_server_paths = []
+        for server_idx, connected_players_list in connected_players_to_server.items():
+            if connected_players_list:
+                for player in connected_players_list:
+                    path = self.get_shortest_path(player, server_idx)
+                    player_server_paths.append((player, server_idx, path))
+
+        self.connected_players_info = connected_players_to_server
+        self.player_server_paths = player_server_paths
+
+    
     def save_graph(self, save_name, params):
         save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
         topology = self.config['Topology']['topology']
@@ -248,7 +325,14 @@ class NetworkGraph:
                 selected_servers.append(server_idx)
 
         # Add node colors and edge colors as attributes
-        node_colors = {node: 'yellow' if node in selected_servers else 'blue' if node in self._only_servers else 'green' for node in self.graph.nodes()}
+        node_colors = {}
+        for node in self.graph.nodes():
+            if node in selected_servers:
+                node_colors[node] = 'red'
+            elif node in self._only_servers:
+                node_colors[node] = 'blue'
+            else:
+                node_colors[node] = 'green'
         
         # Initialize edge colors
         edge_colors = {edge: 'black' for edge in self.graph.edges()}
@@ -430,13 +514,30 @@ class NetworkGraph:
         # Set edge widths based on edge color
         edge_width = [2.0 * edge_width_factor if edge_colors[edge] == 'red' else 1.0 * edge_width_factor for edge in graph.edges()]
         
-        # Define node positions using Latitude and Longitude attributes
-        pos = {node: (float(graph.nodes[node]['Longitude']), float(graph.nodes[node]['Latitude'])) for node in graph.nodes() if 'Latitude' in graph.nodes[node] and 'Longitude' in graph.nodes[node]}
+        # Define node positions and sizes using Latitude, Longitude, and server type attributes
+        pos = {}
+        node_sizes = []
+        for server in self._only_servers:
+            if graph.nodes[server]['server']['type'] == 'core':
+                node_sizes.append(node_size * 5)
+            elif graph.nodes[server]['server']['type'] == 'edge':
+                node_sizes.append(node_size * 3)
+            # get the lat and long values for plot drawing
+            if 'Latitude' in graph.nodes[server] and 'Longitude' in graph.nodes[server]:
+                pos[server] = (float(graph.nodes[server]['Longitude']), float(graph.nodes[server]['Latitude']))
+
+
+        for player_idx, _ in self.players.items():
+            node_sizes.append(node_size)
+            # get the lat and long values for plot drawing
+            if 'Latitude' in graph.nodes[player_idx] and 'Longitude' in graph.nodes[player_idx]:
+                pos[player_idx] = (float(graph.nodes[player_idx]['Longitude']), float(graph.nodes[player_idx]['Latitude']))
+
 
         # Plot the graph
         plt.figure(figsize=figsize)  # Ábra méretének beállítása
 
-        nx.draw(graph, pos, with_labels=True, node_color=list(node_colors.values()), edge_color=list(edge_colors.values()), node_size=node_size, width=edge_width)
+        nx.draw(graph, pos, with_labels=True, node_color=list(node_colors.values()), edge_color=list(edge_colors.values()), node_size=node_sizes, width=edge_width)
         # Optionally display edge labels for distances
         if show_edge_labels:
             edge_labels = {(player, server): round(graph[player][server]["length"],1) for player, server in graph.edges()}

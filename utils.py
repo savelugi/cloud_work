@@ -9,7 +9,7 @@ import os
 def get_lat_long_range(config):
     topology = config['Topology']['topology']
     if topology == "usa":
-        return (25, 45), (-123, -70)
+        return (25, 47), (-123, -70)
     elif topology == "germany":
         return (47, 55), (6, 14)
     elif topology == "cost":
@@ -54,7 +54,18 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
 
     return players
 
-def move_players(players: dict, move_probability, max_move_dist, x_range=(0, 100), y_range=(0, 100), seed=None, debug_prints=False):
+
+def move_player(players:dict, player_id, new_x, new_y, debug_prints=False):
+    
+    if debug_prints:
+        print(f"Moving player {player_id}: to X:{new_x} and Y:{new_y}")
+
+    players[player_id]['Latitude'] = new_x
+    players[player_id]['Longitude'] = new_y
+
+    return
+
+def move_players_randomly(players: dict, move_probability, max_move_dist, x_range=(0, 100), y_range=(0, 100), seed=None, debug_prints=False):
     if seed is not None:
         random.seed(seed)
 
@@ -65,14 +76,18 @@ def move_players(players: dict, move_probability, max_move_dist, x_range=(0, 100
         if random.random() < move_probability:
             delta_x = random.uniform(-max_move_dist, max_move_dist)
             delta_y = random.uniform(-max_move_dist, max_move_dist)
-            print(f"Moving player {player_id}: in X direction:{delta_x} in Y direction:{delta_y}")
             
             # Staying between the boundaries
-            new_x = min(max(player_data['Latitude'] + delta_x, x_min), x_max)
-            new_y = min(max(player_data['Longitude'] + delta_y, y_min), y_max)
+            new_x = round(min(max(player_data['Latitude'] + delta_x, x_min), x_max), 2)
+            new_y = round(min(max(player_data['Longitude'] + delta_y, y_min), y_max), 2)
 
-            players[player_id]['Latitude'] = round(new_x, 2)
-            players[player_id]['Longitude'] = round(new_y, 2)
+            if debug_prints:
+                if delta_x == x_min or delta_x == x_max:
+                    print(f"Player {player_id} is at x boundary")
+                if delta_y == y_min or delta_y == y_max:
+                    print(f"Player {player_id} is at y boundary")
+
+            move_player(players, player_id, new_x, new_y, debug_prints)
 
     return players
 
