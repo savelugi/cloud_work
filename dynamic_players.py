@@ -46,6 +46,7 @@ for i in range(120):
     i = 1
     network.move_player_diagonally(f'P{i+1}', dist=-1, debug_prints=False)
 
+network.remove_player_from_graph("P1", debug_prints=True)
 
 initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
 

@@ -79,6 +79,15 @@ class NetworkGraph:
             }
             self.graph.add_node(node_name, **node_parameters)
 
+    def remove_player_from_graph(self, player, debug_prints=False):
+        if debug_prints:
+            print(f"Removing player {player} from the network!")
+        #TODO: check if we need to remove anything else from the network structures
+        self.remove_player_from_player_list(player)
+        self.remove_server_player_delays(player)
+        self.graph.remove_node(player)
+
+        
     def connect_players_to_closest_servers(self, players):
         for player in players:
             self.connect_player_to_closest_server(player, self.server_positions)
@@ -167,6 +176,10 @@ class NetworkGraph:
         self.clear_delay_cache()
 
     def move_player_diagonally(self, player_id, dist, debug_prints=False):
+        if player_id not in self.players:
+            print(f"Player {player_id} is not amongst the players returning!")
+            return
+        
         self.move_player_horizontally(player_id, dist, debug_prints)
         self.move_player_vertically(player_id, dist, debug_prints)
 
@@ -276,9 +289,10 @@ class NetworkGraph:
             if server_index not in connected_players_to_server:
                 connected_players_to_server[server_index] = []
 
-            connected_players_to_server[server_index].append(f"P{player_index+1}")
-            self.graph.nodes[str(server_index)]['server']['game_server'] = 1
-            self.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
+            if server_index:
+                connected_players_to_server[server_index].append(f"P{player_index+1}")
+                self.graph.nodes[str(server_index)]['server']['game_server'] = 1
+                self.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
 
 
         player_server_paths = []
@@ -503,6 +517,20 @@ class NetworkGraph:
         self.connected_players_info = connected_players_to_server
         self.player_server_paths = player_server_paths
         return True
+    
+    def remove_server_player_delays(self, player):
+        for player_id, server, delay in self.server_to_player_delays:
+            if player_id == player:
+                self.server_to_player_delays.remove((player_id, server, delay))
+                # maybe this should be removed too
+                #self.player_server_paths.remove((player_id, server, self.get_shortest_path(player, server)))
+                return
+            
+        # We shouldn't get here
+        print(f"Player {player} wasn't found in the list!")
+
+    def remove_player_from_player_list(self, player):
+        self.players.pop(player)
 
     def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6)):
 

@@ -22,8 +22,16 @@ def convert_ILP_to_chromosome(player_server_list):
     # int(x[0][1:]) is 'n' in 'Pn', i.e 12 in P12
     sorted_player_server_list = sorted(player_server_list, key=lambda x: int(x[0][1:]))
 
-    for _, server, _ in sorted_player_server_list:
+    previous_index = 0
+    for player, server, _ in sorted_player_server_list:
+        current_index = int(player[1:])
+
+        while previous_index < current_index - 1:
+            chromosome.append(None)
+            previous_index += 1
+
         chromosome.append(server)
+        previous_index = current_index
 
     return chromosome
         
@@ -39,7 +47,8 @@ def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_co
     # TODO: currently only limits the max players
     player_count_on_servers = {server: 0 for server in network._only_servers}
     for server in chromosome:
-        player_count_on_servers[server] += 1
+        if server:
+            player_count_on_servers[server] += 1
 
     for server, player_count in player_count_on_servers.items():
         if player_count > int(max_connected_players): #or player_count < int(min_connected_players):
@@ -94,7 +103,8 @@ def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_co
 def enforce_max_server_occurrences(network: NetworkGraph, chromosome, max_server_nr):
     server_counts = {}
     for server in set(chromosome):
-        server_counts[server] = chromosome.count(server)
+        if server:
+            server_counts[server] = chromosome.count(server)
 
     if len(server_counts) <= int(max_server_nr):
         return chromosome
@@ -104,7 +114,7 @@ def enforce_max_server_occurrences(network: NetworkGraph, chromosome, max_server
 
     servers_to_keep = servers[:int(max_server_nr)]
 
-    chromosome = [server if server in servers_to_keep else default_random.choice(servers_to_keep) for server in chromosome]
+    chromosome = [server if server is None or server in servers_to_keep else default_random.choice(servers_to_keep) for server in chromosome]
 
     return chromosome
 
@@ -112,7 +122,8 @@ def enforce_max_server_occurrences(network: NetworkGraph, chromosome, max_server
 def fitness_sum(network: NetworkGraph, chromosome):
     sum_delays = 0
     for player_index, server in enumerate(chromosome):
-        sum_delays += network.get_shortest_path_delay(f"P{player_index+1}", server)
+        if server:
+            sum_delays += network.get_shortest_path_delay(f"P{player_index+1}", server)
     return sum_delays
 
 @lru_cache(maxsize=None)
@@ -125,7 +136,9 @@ def fitness_ipd(network: NetworkGraph, chromosome):
     for player_index, server_index in enumerate(chromosome):
         if server_index not in connected_players_to_server:
              connected_players_to_server[server_index] = []
-        connected_players_to_server[server_index].append(f"P{player_index+1}")
+
+        if server_index:
+            connected_players_to_server[server_index].append(f"P{player_index+1}")
 
     # Calculate interplayer delay for players connected to the same server
     for server, players_list in connected_players_to_server.items():
@@ -269,7 +282,7 @@ def mutate_edge_servers(network: NetworkGraph, chromosome, mutation_rate):
     unique_servers = list(set(chromosome))
 
     for server in unique_servers:
-        if default_random.random() < mutation_rate:
+        if default_random.random() < mutation_rate and server:
             closest_edge_servers = network.get_closest_servers(server)
             for srv in closest_edge_servers:
                 if not network.is_edge_server(srv):
@@ -290,7 +303,8 @@ def mutate_players(chromosome, mutation_rate, servers):
     mutated_chromosome = chromosome[:]
     for i in range(len(mutated_chromosome)):
         if default_random.random() < mutation_rate:
-            mutated_chromosome[i] = default_random.choice(servers)
+            if mutated_chromosome[i]:
+                mutated_chromosome[i] = default_random.choice(servers)
 
     return mutated_chromosome
 
