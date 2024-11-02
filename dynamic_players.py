@@ -31,7 +31,7 @@ sum_delay_optimization(
                 max_allowed_delay=max_allowed_delay,
                 debug_prints=debug_prints)
 
-network.calculate_delays(method_type='', debug_prints=debug_prints)  
+network.calculate_delays(method_type="Dynamic first", debug_prints=debug_prints)  
 
 network.color_graph()
 
@@ -47,6 +47,10 @@ for i in range(120):
     network.move_player_diagonally(f'P{i+1}', dist=-1, debug_prints=False)
 
 network.remove_player_from_graph("P1", debug_prints=True)
+network.remove_player_from_graph("P2", debug_prints=True)
+for i in range(120):
+    network.add_random_player_to_graph(seed=i)
+
 
 initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
 
@@ -82,10 +86,10 @@ for _ in range(int(generations)):
         max_connected_players = 24
         min_connected_players = 4
 
-        child1 = enforce_max_server_occurrences(network, child1, max_server_nr)
+        child1 = enforce_max_server_occurrences(child1, max_server_nr)
         child1 = enforce_min_max_players_per_server(network, child1, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
 
-        child2 = enforce_max_server_occurrences(network, child2, max_server_nr)
+        child2 = enforce_max_server_occurrences(child2, max_server_nr)
         child2 = enforce_min_max_players_per_server(network, child2, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
 
         offspring.extend([child1, child2])
@@ -96,6 +100,7 @@ sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)
 best_solution = sorted_pop[0]
 
 network.set_player_server_metrics(best_solution)
+network.calculate_delays("Dynamic Edge", debug_prints=True)
 
 network.color_graph()
         

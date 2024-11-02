@@ -65,6 +65,32 @@ class NetworkGraph:
                 
         return closest_servers
     
+    def add_random_player_to_graph(self, player=None, seed=None):
+        if seed is not None:
+            random.seed(seed)
+        # if player name wasn't given, we increment the last player name
+        if player is None:
+            player_keys = list(self.players.keys())
+            player = f"P{int(player_keys[-1][1:]) + 1}"
+
+        player_params = generate_player_params(self.long_range, self.lat_range, seed)
+        
+        self.graph.add_node(player, **player_params)
+        
+        self.players[player] = {
+            'Longitude': player_params['Longitude'],
+            'Latitude': player_params['Latitude'],
+            'device_type': player_params['device_type'],
+            'game': player_params['game'],
+            'ping_preference': player_params['ping_preference'],
+            'video_quality_preference': player_params['video_quality_preference'],
+            'connected_to_server': player_params['connected_to_server']
+        }
+
+        self.connect_player_to_closest_server(player, self.server_positions)
+        self.clear_delay_cache()
+        self.server_to_player_delays.append((player, None, None))
+
     
     def add_players_to_graph(self, nodes):
         for node_name, node_info in nodes.items():
@@ -75,7 +101,7 @@ class NetworkGraph:
                 'game': node_info['game'],
                 'ping_preference': node_info['ping_preference'],
                 'video_quality_preference': node_info['video_quality_preference'],
-                'connected_to_server': -1
+                'connected_to_server': node_info['connected_to_server']
             }
             self.graph.add_node(node_name, **node_parameters)
 
@@ -83,7 +109,7 @@ class NetworkGraph:
         if debug_prints:
             print(f"Removing player {player} from the network!")
         #TODO: check if we need to remove anything else from the network structures
-        self.remove_player_from_player_list(player)
+        self.remove_player_from_player_dictionary(player)
         self.remove_server_player_delays(player)
         self.graph.remove_node(player)
 
@@ -289,7 +315,7 @@ class NetworkGraph:
             if server_index not in connected_players_to_server:
                 connected_players_to_server[server_index] = []
 
-            if server_index:
+            if server_index != -1:
                 connected_players_to_server[server_index].append(f"P{player_index+1}")
                 self.graph.nodes[str(server_index)]['server']['game_server'] = 1
                 self.graph.nodes[f"P{player_index+1}"]['connected_to_server'] = server_index
@@ -443,11 +469,14 @@ class NetworkGraph:
 
         for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
+                selected_servers.append(server_idx)
+
                 for player in connected_players_list:
                     server_to_player_delay = self.get_shortest_path_delay(player, server_idx)
                     server_to_player_delays.append((player, server_idx, server_to_player_delay))
 
-                selected_servers.append(server_idx)
+                if debug_prints:
+                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
 
         for i in range(len(server_to_player_delays)):
             for j in range(i + 1, len(server_to_player_delays)):
@@ -529,7 +558,7 @@ class NetworkGraph:
         # We shouldn't get here
         print(f"Player {player} wasn't found in the list!")
 
-    def remove_player_from_player_list(self, player):
+    def remove_player_from_player_dictionary(self, player):
         self.players.pop(player)
 
     def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6)):

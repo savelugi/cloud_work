@@ -18,39 +18,53 @@ def get_lat_long_range(config):
         print("Error: Unsupported topology")
         return None
 
-def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=None):
+def generate_player_params(x_range=(0, 100), y_range=(0, 100), seed=None):
     if seed is not None:
         random.seed(seed)
 
-    players = {}
     x_min, x_max = x_range
     y_min, y_max = y_range
-    
-    for i in range(int(num_players)):
-        player_name = f"P{i+1}"
+    x = round(random.uniform(x_min, x_max), 2)
+    y = round(random.uniform(y_min, y_max), 2)
+    device_type = random.choice(['mobile', 'desktop'])
+    game = random.choice(['NFS', 'WoW', 'CSGO'])
+    if game == 'NFS':
+        ping_preference = random.choice([40, 50, 60, 70, 80, 90])
+        video_quality_preference = random.choice([4800, 6000, 7200, 8400])
+    if game == 'WoW':
+        ping_preference = random.choice([30, 40, 50, 60])
+        video_quality_preference = random.choice([3600, 4800, 6000, 7200, 8400])
+    if game == 'CSGO':
+        ping_preference = random.choice([30, 40, 50])
+        video_quality_preference = random.choice([1200, 2400, 3600, 4800])
 
-        x = round(random.uniform(x_min, x_max), 2)
-        y = round(random.uniform(y_min, y_max), 2)
-        device_type = random.choice(['mobile', 'desktop'])
-        game = random.choice(['NFS', 'WoW', 'CSGO'])
-        if game == 'NFS':
-            ping_preference = random.choice([40, 50, 60, 70, 80, 90])
-            video_quality_preference = random.choice([4800, 6000, 7200, 8400])
-        if game == 'WoW':
-            ping_preference = random.choice([30, 40, 50, 60])
-            video_quality_preference = random.choice([3600, 4800, 6000, 7200, 8400])
-        if game == 'CSGO':
-            ping_preference = random.choice([30, 40, 50])
-            video_quality_preference = random.choice([1200, 2400, 3600, 4800])
-        
-        players[player_name] = {
+    return {
             'Longitude': y,
             'Latitude': x,
             'device_type': device_type,
             'game': game,
             'ping_preference': ping_preference,
-            'video_quality_preference': video_quality_preference
+            'video_quality_preference': video_quality_preference,
+            'connected_to_server': -1
+    }
+
+def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=None):
+    players = {}
+    
+    for i in range(int(num_players)):
+        player_name = f"P{i+1}"
+        player_params = generate_player_params(x_range, y_range, seed)
+        
+        players[player_name] = {
+            'Longitude': player_params['Longitude'],
+            'Latitude': player_params['Latitude'],
+            'device_type': player_params['device_type'],
+            'game': player_params['game'],
+            'ping_preference': player_params['ping_preference'],
+            'video_quality_preference': player_params['video_quality_preference'],
+            'connected_to_server': player_params['connected_to_server']
         }
+        seed += 1
 
     return players
 

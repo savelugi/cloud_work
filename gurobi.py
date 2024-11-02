@@ -82,7 +82,7 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
                         path = network.get_shortest_path(player, server_idx)
                         player_server_paths_model_1.append((player, server_idx, path))
 
-                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                    #print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
                 #else:
                 # print(f"To server {server_idx} no players are connected")
     else:
@@ -188,7 +188,7 @@ def interplayer_delay_optimization(network: NetworkGraph, server_positions, play
                         path = network.get_shortest_path(player, server_idx)
                         player_server_paths_model_2.append((player, server_idx, path))
 
-                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                    #print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
                 #else:
                 # print(f"To server {server_idx} no players are connected")
     else:
