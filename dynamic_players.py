@@ -41,14 +41,14 @@ network.get_closest_servers('3')
 network.draw_graph(title="Graf")
 
 #move
-for i in range(120):
+for i in range(12):
     #for i in range(num_players):
     i = 1
     network.move_player_diagonally(f'P{i+1}', dist=-1, debug_prints=False)
 
 network.remove_player_from_graph("P1", debug_prints=True)
 network.remove_player_from_graph("P2", debug_prints=True)
-for i in range(120):
+for i in range(12):
     network.add_random_player_to_graph(seed=i)
 
 

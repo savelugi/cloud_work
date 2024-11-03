@@ -10,7 +10,10 @@ class NetworkGraph:
         self.connected_players_info = {}
         self.player_server_paths = []
         self.delay_metrics = []
+        self.previous_server_to_player_delays = None
         self.server_to_player_delays = []
+        self.previous_selected_servers = None
+        self.selected_servers = []
         self.best_solution = []
         
         if config is None:
@@ -331,6 +334,31 @@ class NetworkGraph:
         self.connected_players_info = connected_players_to_server
         self.player_server_paths = player_server_paths
 
+    def calculate_player_migrations(self):
+        if not self.previous_server_to_player_delays:
+            return 0
+        
+        migration_count = 0
+
+        for curr_player, curr_server, _ in self.server_to_player_delays:
+            for prev_player, prev_server, _ in self.previous_server_to_player_delays:
+                if prev_player == curr_player and prev_server != curr_server:
+                    migration_count += 1
+
+        return migration_count
+    
+    def calculate_server_migrations(self):
+        if not self.previous_selected_servers:
+            return 0
+            
+        migration_count = 0
+
+        set_prev = set(self.previous_selected_servers)
+        set_curr = set(self.selected_servers)
+
+        migration_count = len(set_curr.symmetric_difference(set_prev))
+
+        return migration_count
     
     def save_graph(self, save_name, params):
         save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
@@ -458,6 +486,9 @@ class NetworkGraph:
         
     # Function to calculate interplayer delay metrics
     def calculate_delays(self, method_type, debug_prints):
+        self.previous_server_to_player_delays = self.server_to_player_delays
+        self.previous_selected_servers = self.selected_servers
+
         selected_servers = []
         server_to_player_delays = []
         player_to_player_delays = []
@@ -502,6 +533,12 @@ class NetworkGraph:
         min_player_to_player_delay = round(min_value[2],2)
         max_player_to_player_delay = round(max_value[2],2)
 
+        self.delay_metrics = [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
+                              average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay,
+                              len(selected_servers)]
+        self.server_to_player_delays = server_to_player_delays
+        self.selected_servers = selected_servers
+
         if debug_prints:
             # Print the metrics
             print(f"\nThe {method_type} method selected servers are: {selected_servers}")
@@ -512,11 +549,8 @@ class NetworkGraph:
             print(f"\nAverage interplayer delay: {average_player_to_player_delay}")
             print(f"Maximum interplayer delay: {max_value}")
             print(f"Minimum interplayer delay: {min_value}")
-
-        self.delay_metrics = [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
-                              average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay,
-                              len(selected_servers)]
-        self.server_to_player_delays = server_to_player_delays
+            print(f"Number of player migrations: {self.calculate_player_migrations()}")
+            print(f"Number of server migrations: {self.calculate_server_migrations()}")
 
         return True
         
