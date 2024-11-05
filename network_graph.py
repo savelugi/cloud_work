@@ -595,7 +595,7 @@ class NetworkGraph:
     def remove_player_from_player_dictionary(self, player):
         self.players.pop(player)
 
-    def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6)):
+    def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6), save=False, save_dir=None):
 
         graph = self.graph
         # Get node and edge attributes for colors
@@ -635,6 +635,8 @@ class NetworkGraph:
             nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
 
         plt.title(title, y=-0.01, fontsize="19")
+        if save:
+            plt.savefig(save_dir + '/' + title + '.png')
 
     def display_plots(self):
         plt.show()

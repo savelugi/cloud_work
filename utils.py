@@ -5,6 +5,9 @@ import math
 import csv
 import configparser
 import os
+import glob
+from PIL import Image
+import re
 
 def get_lat_long_range(config):
     topology = config['Topology']['topology']
@@ -266,6 +269,31 @@ def write_csv_row(csv_path, values):
     with open(csv_path, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(values)
+
+def soert(path):
+    path, filename = os.path.split(path)
+    filename, extension = os.path.splitext(filename)
+    if filename.isdigit():
+        filename_number = int(filename)
+        filenamen = f'{filename_number:08}'
+    return f'{path}/{filename}.{extension}'
+
+def generate_GIF(path):
+    frames = []
+    list = sorted(glob.glob(path + '/' + '*.png'), key=soert)
+    for png in list:
+    #for png in glob.glob(path + '/' + '*.png'):
+        img = Image.open(png)
+        frames.append(img)
+
+    frames[0].save(
+        path + '/' + 'output.gif',
+        format='GIF',
+        append_images=frames[1:],
+        save_all=True,
+        duration=1000,
+        loop=0
+)
 
 class Timer:
     def __init__(self):
