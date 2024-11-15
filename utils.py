@@ -7,7 +7,7 @@ import configparser
 import os
 import glob
 from PIL import Image
-import re
+from globvars import logger
 
 def get_lat_long_range(config):
     topology = config['Topology']['topology']
@@ -73,9 +73,7 @@ def generate_players(num_players=10, x_range=(0, 100), y_range=(0, 100), seed=No
 
 
 def move_player(players:dict, player_id, new_x, new_y, debug_prints=False):
-    
-    if debug_prints:
-        print(f"Moving player {player_id}: to X:{new_x} and Y:{new_y}")
+    logger.log(f"Moving player {player_id}: to X:{new_x} and Y:{new_y}")
 
     players[player_id]['Latitude'] = new_x
     players[player_id]['Longitude'] = new_y
@@ -98,11 +96,10 @@ def move_players_randomly(players: dict, move_probability, max_move_dist, x_rang
             new_x = round(min(max(player_data['Latitude'] + delta_x, x_min), x_max), 2)
             new_y = round(min(max(player_data['Longitude'] + delta_y, y_min), y_max), 2)
 
-            if debug_prints:
-                if delta_x == x_min or delta_x == x_max:
-                    print(f"Player {player_id} is at x boundary")
-                if delta_y == y_min or delta_y == y_max:
-                    print(f"Player {player_id} is at y boundary")
+            if delta_x == x_min or delta_x == x_max:
+                logger.log(f"Player {player_id} is at x boundary")
+            if delta_y == y_min or delta_y == y_max:
+                logger.log(f"Player {player_id} is at y boundary")
 
             move_player(players, player_id, new_x, new_y, debug_prints)
 
@@ -241,15 +238,22 @@ def calculate_video_score():
 
 def write_csv_header(csv_path, active_models):
     header_columns = ['num_players', 'nr_of_servers', 'min_players_connected', 'max_connected_players', 'max_allowed_delay']
+    for modelname in active_models:
+        header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
+            f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
+            f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
+
+    with open(csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(header_columns)
+
+def write_dynamic_csv_header(csv_path):
+    header_columns = ['tick', 'model_type', 'num_players', 'nr_of_active_game_servers', 'nr_of_player_migrations', 'nr_of_server_migrations', 'nr_of_players_moved']
+    header_columns += ['average_player_to_server_delay', 'min_player_to_server_delay', 'max_player_to_server_delay', 'average_player_to_player_delay',
+                       'min_player_to_player_delay', 'max_player_to_player_delay', 'qoe_score']
     
     with open(csv_path, mode='w', newline='') as file:
         writer = csv.writer(file)
-
-        for modelname in active_models:
-            header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
-                    f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
-        
         writer.writerow(header_columns)
 
 def write_ga_csv_header(csv_path, active_models):

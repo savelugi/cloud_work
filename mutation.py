@@ -7,6 +7,7 @@ from gurobi import *
 import numpy as np
 from functools import lru_cache
 from scipy.stats import sem
+from globvars import logger
 
 default_random = random.Random()
 def initial_population(players, servers, population_size):
@@ -127,16 +128,21 @@ def enforce_max_server_occurrences(chromosome, max_server_nr):
     return updated_chromosome
 
 @lru_cache(maxsize=None)
-def fitness_sum(network: NetworkGraph, chromosome):
+def fitness_sum(network: NetworkGraph, chromosome, prev_chromosome=None):
     sum_delays = 0
+    migration_cost = 0
+
     for player_index, server in enumerate(chromosome):
         if server != -1:
             if server:
                 sum_delays += network.get_shortest_path_delay(f"P{player_index+1}", server)
+                migration_cost = network.calculate_migration_cost(prev_chromosome[player_index], server)
             else:
                 # this is the case when a new player was added recently to the network, and it isn't connected to a server yet, increasing fitness significantly
                 sum_delays += 1000
-    return sum_delays
+
+    total_fiteness = sum_delays + migration_cost
+    return total_fiteness
 
 @lru_cache(maxsize=None)
 def fitness_ipd(network: NetworkGraph, chromosome):
@@ -178,11 +184,11 @@ def fitness_sum_ipd(network: NetworkGraph, chromosome, players, init_fitnesses, 
     return ratio * 0.1 * normalized_sum_delay + (10 - ratio) * 0.1 * normalized_max_ipd
 
 
-def fitness(network: NetworkGraph, chromosome, method, init_fitnesses=None, ratio=6):
+def fitness(network: NetworkGraph, chromosome, method, init_fitnesses=None, ratio=6, prev_chromosome=None):
     if method == 'ipd':
         return fitness_ipd(network, chromosome)
     elif method == 'sum':
-        return fitness_sum(network, chromosome)
+        return fitness_sum(network, chromosome, prev_chromosome)
     elif method == 'sum_ipd':
         return fitness_sum_ipd(network, chromosome, init_fitnesses, ratio)
     else:
@@ -403,7 +409,8 @@ def genetic_algorithm(network: NetworkGraph, players, servers, population_size, 
 
     if initial_pop is None:
         if debug_prints:
-            print("Initial population wasn't passed, generating random population!")
+            #print("Initial population wasn't passed, generating random population!")
+            logger.log("Initial population wasn't passed, generating random population!")
         population = initial_population(players, servers, population_size)
     else:
         population = chromosome_to_uniform_population(initial_pop, population_size)

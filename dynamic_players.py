@@ -5,6 +5,8 @@ from visualization import *
 from gurobi import *
 from datetime import datetime
 from mutation import *
+import globvars
+from globvars import logger
 
 TOTAL_TICK_COUNT = 30
 
@@ -20,8 +22,8 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 csv_path = save_path + '/' + timestamp + '_' + topology + '.csv'
-
-#seed_value = 42
+log_path = save_path + '/' + "log.txt"
+logger.set_log_file(log_path)
 
 debug_prints, optimize, save, plot, active_models = get_toggles_from_config(config)
 param_combinations = read_parameters_from_config(config)
@@ -29,22 +31,31 @@ num_players, nr_of_servers, min_players_connected, max_connected_players, max_al
 
 network = NetworkGraph(modelname='ilp_sum', config=config, num_gen_players=num_players)
 tick = 0
-write_csv_header(csv_path, active_models)
+default_random = random.Random()
+write_dynamic_csv_header(csv_path)
+
+logger.log("Dynamic player simulation started")
 
 for tick in range(TOTAL_TICK_COUNT):
     csv_list = []
     tick += 1
+    ILP_has_run = False
 
-    if tick % 2 == 0:
-        for i in range(10):
-            i = 1
+    if default_random.random() < 0.1:
+        for i in range(len(network.players)):
+            if default_random.random() < 0.1:
+                network.add_random_player_to_graph()
+
+    if default_random.random() < 0.2:
+        for i in range(len(network.players)):
+            if default_random.random() < 0.1:
+                network.remove_player_from_graph(f'P{default_random.randrange(1, len(network.players))}')
+
+    if default_random.random() < 0.5:
+        if len(network.players) > 1:
             for i in range(1, len(network.players)):
-                network.move_player_diagonally(f'P{i}', dist=0.1, debug_prints=False)
-
-        #network.remove_player_from_graph("P1", debug_prints=True)
-        #network.remove_player_from_graph("P2", debug_prints=True)
-        #network.add_random_player_to_graph(seed=tick)
-
+                network.move_player_diagonally(f'P{default_random.randrange(1, len(network.players))}', 0.1)
+       
     if tick % 10 == 0 or tick == 1:
 
         sum_delay_optimization(
@@ -57,21 +68,34 @@ for tick in range(TOTAL_TICK_COUNT):
             max_allowed_delay=max_allowed_delay,
             debug_prints=debug_prints)
 
-        network.calculate_delays(method_type="Dynamic first", debug_prints=debug_prints)
-        #network.calculate_qoe_metrics()
+        network.calculate_delays(method_type="sum_delay", debug_prints=debug_prints)
+        network.calculate_qoe_metrics()
         csv_list.append(tick)
-        csv_list += network.delay_metrics
+        csv_list.append('ILP')
+        csv_list.append(len(network.players))
+        csv_list.append(network.delay_metrics[6])
+        csv_list.append(network.calculate_player_migrations())
+        csv_list.append(network.calculate_server_migrations())
+        csv_list.append(globvars.move_counter)
+        globvars.move_counter = 0
+        for i in range (0, 5):
+            csv_list.append(network.delay_metrics[i])
+        
         write_csv_row(csv_path, csv_list)
 
         #network.append(round(timer.get_elapsed_time()))
 
         network.color_graph()
         network.draw_graph(title=str(tick).zfill(4) + '_' + 'Gurobi', save=True, save_dir=save_path)
-        continue
 
-    if tick % 5 == 0:
+        ILP_has_run = True
+
+    if tick % 5 == 0 and not ILP_has_run:
+        logger.log('--------------------------------------------------------------')
+        logger.log("Genetic algorithm started")
         network.clear_game_servers()
         initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
+        prev_chromosome = initial_chromosome
 
         population_size = 100
         population = chromosome_to_uniform_population(initial_chromosome, population_size)
@@ -79,10 +103,11 @@ for tick in range(TOTAL_TICK_COUNT):
         generations = 1000
         for _ in range(int(generations)):
             fitness_method='sum'
-            fitness_values = [fitness(network, tuple(chromosome), fitness_method) for chromosome in population]
+            fitness_values = [fitness(network, tuple(chromosome), fitness_method, prev_chromosome=tuple(prev_chromosome)) for chromosome in population]
             
             sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
             best_solution = sorted_pop[0]
+            prev_chromosome = best_solution
             best_fitness = fitness_values[population.index(best_solution)]
 
             selection_strategy = 'rank_based'
@@ -115,20 +140,28 @@ for tick in range(TOTAL_TICK_COUNT):
 
         sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])  
         best_solution = sorted_pop[0]
+        logger.log('Genetic algorithm has found a solution with a fitness of ' + str(best_fitness))
 
         network.set_player_server_metrics(best_solution)
-        network.calculate_delays("Dynamic Edge", debug_prints=True)
-        #network.calculate_qoe_metrics()
-        csv_list.append(tick)
-        csv_list += network.delay_metrics
-        write_csv_row(csv_path, csv_list)
+        network.calculate_delays("Genetic algorithm", debug_prints=True)
+        network.calculate_qoe_metrics()
 
+        csv_list.append(tick)
+        csv_list.append('GEN')
+        csv_list.append(len(network.players))
+        csv_list.append(network.delay_metrics[6])
+        csv_list.append(network.calculate_player_migrations())
+        csv_list.append(network.calculate_server_migrations())
+        csv_list.append(globvars.move_counter)
+        globvars.move_counter = 0
+        for i in range (0, 5):
+            csv_list.append(network.delay_metrics[i])
+        write_csv_row(csv_path, csv_list)
 
         network.color_graph()     
         network.draw_graph(title=str(tick).zfill(4) + '_' + "Heuristic", save=True, save_dir=save_path)
-        # There should be statistics counted at each recalculation
 
 #network.display_plots()
 generate_GIF(save_path)
 
-print("End of simulation")
+logger.log("Simulation complete.")

@@ -2,9 +2,11 @@ import networkx as nx
 import os
 from utils import *
 import matplotlib.pyplot as plt
+import globvars
+from globvars import logger
+
 class NetworkGraph:
     def __init__(self, modelname="", config=None, num_gen_players=0):
-
         self.modelname = modelname
         self.delay_cache = {}  # Initialize an empty cache
         self.connected_players_info = {}
@@ -15,6 +17,7 @@ class NetworkGraph:
         self.previous_selected_servers = None
         self.selected_servers = []
         self.best_solution = []
+        self.previous_server_assignments = []
         
         if config is None:
             self.graph = nx.Graph()
@@ -27,6 +30,7 @@ class NetworkGraph:
             self.server_positions = self.get_server_positions()
             self._only_servers = list(self.graph.nodes)
             self.edge_servers = self.get_edge_servers()
+            
 
             ranges = get_lat_long_range(config)
             if ranges is not None:
@@ -38,6 +42,7 @@ class NetworkGraph:
                 self.players = generate_players(num_gen_players, self.long_range, self.lat_range, self.seed)
                 self.add_players_to_graph(self.players)
                 self.connect_players_to_closest_servers(self.players)
+                self.previous_server_assignments = [None] * len(self.players) * 10
 
 
     def load_topology(self, topology_dir):
@@ -93,6 +98,7 @@ class NetworkGraph:
         self.connect_player_to_closest_server(player, self.server_positions)
         self.clear_delay_cache()
         self.server_to_player_delays.append((player, None, None))
+        logger.log_function(f"Added player {player} to the network graph!")
 
     
     def add_players_to_graph(self, nodes):
@@ -110,11 +116,13 @@ class NetworkGraph:
 
     def remove_player_from_graph(self, player, debug_prints=False):
         if debug_prints:
-            print(f"Removing player {player} from the network!")
+            logger.log_function(f"Trying to remove player {player} from the network graph!")
         #TODO: check if we need to remove anything else from the network structures
-        self.remove_player_from_player_dictionary(player)
+        if self.remove_player_from_player_dictionary(player, debug_prints=True) is False:
+            return
         self.remove_server_player_delays(player)
         self.graph.remove_node(player)
+        logger.log_function(f"Removed player {player} from the network graph!")
 
         
     def connect_players_to_closest_servers(self, players):
@@ -176,41 +184,62 @@ class NetworkGraph:
         self.color_graph()
         self.clear_delay_cache()
 
-    def move_player_horizontally(self, player_id, dist, debug_prints=False):
+    def move_player_horizontally(self, player_id, dist):
         x_min, x_max = self.lat_range
 
         # Staying between the boundaries
         new_x = min(max(self.graph.nodes[player_id]['Longitude'] + dist, x_min), x_max)
+        
+        if new_x != x_max or new_x != x_min:
+            globvars.move_counter += 1
 
-        if debug_prints:
-            print(f"Moving player {player_id}: from ({self.graph.nodes[player_id]['Longitude']}, {self.graph.nodes[player_id]['Latitude']}) to ({new_x}, {self.graph.nodes[player_id]['Latitude']})")
+            logger.log_function(
+                f"Moving player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
+                f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to ({round(new_x, 2)}, "
+                f"{round(self.graph.nodes[player_id]['Latitude'], 2)})"
+            )
 
         self.graph.nodes[player_id]['Longitude'] = new_x
-
         self.connect_player_to_closest_server(player_id, self.server_positions)
         self.clear_delay_cache()
+      
 
-    def move_player_vertically(self, player_id, dist, debug_prints=False):
+
+    def move_player_vertically(self, player_id, dist):
         y_min, y_max = self.long_range
 
         # Staying between the boundaries
         new_y = min(max(self.graph.nodes[player_id]['Latitude'] + dist, y_min), y_max)
+        
+        if new_y != y_max or new_y != y_min:
+            globvars.move_counter += 1
 
-        if debug_prints:
-            print(f"Moving player {player_id}: from ({self.graph.nodes[player_id]['Longitude']}, {self.graph.nodes[player_id]['Latitude']}) to ({self.graph.nodes[player_id]['Longitude']}, {new_y})")
+            logger.log_function(
+                f"Moving player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
+                f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to "
+                f"({round(self.graph.nodes[player_id]['Longitude'], 2)}, {round(new_y, 2)})"
+            )
+
 
         self.graph.nodes[player_id]['Latitude'] = new_y
 
         self.connect_player_to_closest_server(player_id, self.server_positions)
         self.clear_delay_cache()
 
-    def move_player_diagonally(self, player_id, dist, debug_prints=False):
+    def move_player_diagonally(self, player_id, dist):
+        # needed for correct counting
+        old_move_counter = globvars.move_counter
+
         if player_id not in self.players:
-            print(f"Player {player_id} is not amongst the players returning!")
+            logger.log_function(f"Player {player_id} is not amongst the players returning!")
             return
         
-        self.move_player_horizontally(player_id, dist, debug_prints)
-        self.move_player_vertically(player_id, dist, debug_prints)
+        self.move_player_horizontally(player_id, dist)
+        self.move_player_vertically(player_id, dist)
+
+        # count diagonal move as one
+        if globvars.move_counter - old_move_counter == 2:
+            globvars.move_counter -= 1
 
     def migrate_edge_servers_if_beneficial(self, player):
        # TODO: very csunya, ne igy csinald!#############
@@ -360,6 +389,19 @@ class NetworkGraph:
 
         return migration_count
     
+    def calculate_migration_cost(self, old_server, new_server):
+        migration_cost_multiplier = 100000
+
+        if old_server:
+            if old_server != new_server:
+                return self.get_shortest_path_delay(old_server, new_server) * migration_cost_multiplier
+            else:
+                return 0
+        else:
+            #this is the case when a new player was added recently to the network, and it is being connected to a server
+            return 0
+
+    
     def save_graph(self, save_name, params):
         save_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "saves/")
         topology = self.config['Topology']['topology']
@@ -507,7 +549,7 @@ class NetworkGraph:
                     server_to_player_delays.append((player, server_idx, server_to_player_delay))
 
                 if debug_prints:
-                    print(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                    logger.log(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
 
         for i in range(len(server_to_player_delays)):
             for j in range(i + 1, len(server_to_player_delays)):
@@ -540,17 +582,20 @@ class NetworkGraph:
         self.selected_servers = selected_servers
 
         if debug_prints:
-            # Print the metrics
-            print(f"\nThe {method_type} method selected servers are: {selected_servers}")
-            print(f"Average player to server delay: {average_player_to_server_delay}")
-            print(f"Minimum player to server delay: {min_player_to_server_delay}")
-            print(f"Maximum player to server delay: {max_player_to_server_delay}")
+            # Log the metrics
+            logger.log(f"The {method_type} method selected servers are: {selected_servers}")
+            logger.log(f"Average player to server delay: {average_player_to_server_delay}")
+            logger.log(f"Minimum player to server delay: {min_player_to_server_delay}")
+            logger.log(f"Maximum player to server delay: {max_player_to_server_delay}")
+            logger.log(f"Average interplayer delay: {average_player_to_player_delay}")
+            logger.log(f"Maximum interplayer delay: {max_value}")
+            logger.log(f"Minimum interplayer delay: {min_value}")
+            logger.log(f"Number of player migrations: {self.calculate_player_migrations()}")
+            logger.log(f"Number of server migrations: {self.calculate_server_migrations()}")
 
-            print(f"\nAverage interplayer delay: {average_player_to_player_delay}")
-            print(f"Maximum interplayer delay: {max_value}")
-            print(f"Minimum interplayer delay: {min_value}")
-            print(f"Number of player migrations: {self.calculate_player_migrations()}")
-            print(f"Number of server migrations: {self.calculate_server_migrations()}")
+        logger.log(f"{method_type} optimization finished.")
+        logger.log('--------------------------------------------------------------')
+
 
         return True
         
@@ -592,8 +637,16 @@ class NetworkGraph:
         # We shouldn't get here
         print(f"Player {player} wasn't found in the list!")
 
-    def remove_player_from_player_dictionary(self, player):
-        self.players.pop(player)
+    def remove_player_from_player_dictionary(self, player, debug_prints=None):
+        #Returns True if the player was found and removed
+        removed_player = self.players.pop(player, None)
+        if removed_player is None:
+            if debug_prints:
+                logger.log_function(f"Player {player} wasn't found in the player dictionary!")
+            return False
+        else:
+            return True
+    
 
     def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6), save=False, save_dir=None):
 
