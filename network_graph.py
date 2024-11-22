@@ -42,7 +42,8 @@ class NetworkGraph:
                 self.players = generate_players(num_gen_players, self.long_range, self.lat_range, self.seed)
                 self.add_players_to_graph(self.players)
                 self.connect_players_to_closest_servers(self.players)
-                self.previous_server_assignments = [None] * len(self.players) * 10
+                #TODO: static allocation, could be done dynamically
+                self.previous_server_assignments = [None] * 1000
 
 
     def load_topology(self, topology_dir):
@@ -158,6 +159,12 @@ class NetworkGraph:
         else:
             return False
         
+    def is_core_server(self, server):
+        if self.graph.nodes[server]['server']['type'] == "core":
+            return True
+        else:
+            return False
+        
     def get_edge_servers(self):
         edge_servers = []
         for server in self._only_servers:
@@ -184,7 +191,7 @@ class NetworkGraph:
         self.color_graph()
         self.clear_delay_cache()
 
-    def move_player_horizontally(self, player_id, dist):
+    def move_player_horizontally(self, player_id, dist, debug_prints=False):
         x_min, x_max = self.lat_range
 
         # Staying between the boundaries
@@ -193,11 +200,12 @@ class NetworkGraph:
         if new_x != x_max or new_x != x_min:
             globvars.move_counter += 1
 
-            logger.log_function(
-                f"Moving player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
-                f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to ({round(new_x, 2)}, "
-                f"{round(self.graph.nodes[player_id]['Latitude'], 2)})"
-            )
+            if debug_prints:
+                logger.log_function(
+                    f"Moved player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
+                    f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to ({round(new_x, 2)}, "
+                    f"{round(self.graph.nodes[player_id]['Latitude'], 2)})"
+                )
 
         self.graph.nodes[player_id]['Longitude'] = new_x
         self.connect_player_to_closest_server(player_id, self.server_positions)
@@ -205,7 +213,7 @@ class NetworkGraph:
       
 
 
-    def move_player_vertically(self, player_id, dist):
+    def move_player_vertically(self, player_id, dist, debug_prints=False):
         y_min, y_max = self.long_range
 
         # Staying between the boundaries
@@ -214,32 +222,38 @@ class NetworkGraph:
         if new_y != y_max or new_y != y_min:
             globvars.move_counter += 1
 
-            logger.log_function(
-                f"Moving player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
-                f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to "
-                f"({round(self.graph.nodes[player_id]['Longitude'], 2)}, {round(new_y, 2)})"
-            )
-
+            if debug_prints:
+                logger.log_function(
+                    f"Moved player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
+                    f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to "
+                    f"({round(self.graph.nodes[player_id]['Longitude'], 2)}, {round(new_y, 2)})"
+                )
 
         self.graph.nodes[player_id]['Latitude'] = new_y
 
         self.connect_player_to_closest_server(player_id, self.server_positions)
         self.clear_delay_cache()
 
-    def move_player_diagonally(self, player_id, dist):
+    def move_player_diagonally(self, player_id, dist, debug_prints=False):
         # needed for correct counting
         old_move_counter = globvars.move_counter
 
         if player_id not in self.players:
-            logger.log_function(f"Player {player_id} is not amongst the players returning!")
+            if debug_prints:
+                logger.log_function(f"Player {player_id} is not amongst the players returning!")
             return
         
+        old_x, old_y = self.players[player_id]['Longitude'], self.players[player_id]['Latitude']
+
         self.move_player_horizontally(player_id, dist)
         self.move_player_vertically(player_id, dist)
 
         # count diagonal move as one
         if globvars.move_counter - old_move_counter == 2:
             globvars.move_counter -= 1
+        
+        if debug_prints:
+            logger.log_function(f"Moved player {player_id} diagonally from ({old_x}, {old_y}) to ({self.players[player_id]['Longitude']}, {self.players[player_id]['Latitude']})")
 
     def migrate_edge_servers_if_beneficial(self, player):
        # TODO: very csunya, ne igy csinald!#############
@@ -390,11 +404,17 @@ class NetworkGraph:
         return migration_count
     
     def calculate_migration_cost(self, old_server, new_server):
-        migration_cost_multiplier = 100000
+        migration_cost_multiplier = 10
 
         if old_server:
             if old_server != new_server:
-                return self.get_shortest_path_delay(old_server, new_server) * migration_cost_multiplier
+                if self.is_core_server(new_server):
+                    return self.get_shortest_path_delay(old_server, new_server) * migration_cost_multiplier
+                if self.is_edge_server(new_server):
+                    return self.get_shortest_path_delay(old_server, new_server) * migration_cost_multiplier * 0.5
+                
+                print("We shouldn't get here")
+                return KeyError
             else:
                 return 0
         else:
@@ -523,7 +543,7 @@ class NetworkGraph:
 
             player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
 
-        self.delay_metrics.append(player_scores)
+        self.delay_metrics.append(player_scores/len(self.players))
         return True
         
     # Function to calculate interplayer delay metrics
@@ -566,14 +586,25 @@ class NetworkGraph:
                             max_value = (player_1, player_2, inter_player_delay)
 
         # Calculate metrics
-        delays_only = [delay for _, _, delay in server_to_player_delays]
-        average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
-        min_player_to_server_delay = round(min(delays_only),2)
-        max_player_to_server_delay = round(max(delays_only),2)
+        if server_to_player_delays:
+            delays_only = [delay for _, _, delay in server_to_player_delays]
+            average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
+            min_player_to_server_delay = round(min(delays_only),2)
+            max_player_to_server_delay = round(max(delays_only),2)
+        else:
+            average_player_to_server_delay = 0
+            min_player_to_server_delay = 0
+            max_player_to_server_delay = 0
 
-        average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays),2)
-        min_player_to_player_delay = round(min_value[2],2)
-        max_player_to_player_delay = round(max_value[2],2)
+
+        if player_to_player_delays:
+            average_player_to_player_delay = round(sum(player_to_player_delays) / len(player_to_player_delays),2)
+            min_player_to_player_delay = round(min_value[2],2)
+            max_player_to_player_delay = round(max_value[2],2)
+        else:
+            average_player_to_player_delay = 0
+            min_player_to_player_delay = 0
+            max_player_to_player_delay = 0
 
         self.delay_metrics = [average_player_to_server_delay, min_player_to_server_delay, max_player_to_server_delay,
                               average_player_to_player_delay, min_player_to_player_delay, max_player_to_player_delay,
@@ -690,6 +721,7 @@ class NetworkGraph:
         plt.title(title, y=-0.01, fontsize="19")
         if save:
             plt.savefig(save_dir + '/' + title + '.png')
+            logger.log_function(f"Graph saved to {title}.png")
 
     def display_plots(self):
         plt.show()

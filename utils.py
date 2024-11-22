@@ -297,7 +297,9 @@ def generate_GIF(path):
         save_all=True,
         duration=1000,
         loop=0
-)
+    )
+
+    logger.log_function("GIF generated successfully!")
 
 class Timer:
     def __init__(self):

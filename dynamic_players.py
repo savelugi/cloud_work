@@ -7,8 +7,9 @@ from datetime import datetime
 from mutation import *
 import globvars
 from globvars import logger
+import math
 
-TOTAL_TICK_COUNT = 30
+TOTAL_TICK_COUNT = 50
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 save_dir = os.path.join(dir_path, "saves/dynamic/")
@@ -25,47 +26,72 @@ csv_path = save_path + '/' + timestamp + '_' + topology + '.csv'
 log_path = save_path + '/' + "log.txt"
 logger.set_log_file(log_path)
 
-debug_prints, optimize, save, plot, active_models = get_toggles_from_config(config)
-param_combinations = read_parameters_from_config(config)
-num_players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay = param_combinations[0]
+debug_prints = True
 
-network = NetworkGraph(modelname='ilp_sum', config=config, num_gen_players=num_players)
+INITIAL_PLAYER_NUMBER = 40
+NR_OF_GAME_SERVERS = 5
+MIN_PLAYERS_ON_SERVER = 4
+MAX_PLAYERS_ON_SERVER = 16
+MAX_ALLOWED_DELAY = 20
+
+network = NetworkGraph(modelname='ilp_sum', config=config, num_gen_players=INITIAL_PLAYER_NUMBER)
 tick = 0
 default_random = random.Random()
 write_dynamic_csv_header(csv_path)
 
-logger.log("Dynamic player simulation started")
+logger.log("Dynamic player simulation started", print_to_console=True)
 
 for tick in range(TOTAL_TICK_COUNT):
     csv_list = []
     tick += 1
     ILP_has_run = False
 
-    if default_random.random() < 0.1:
+    if default_random.random() < 0.5:
+        counter  = 0
+        logger.log(f"T{tick}: Adding random players to the network graph!")
         for i in range(len(network.players)):
             if default_random.random() < 0.1:
                 network.add_random_player_to_graph()
+                counter += 1
 
-    if default_random.random() < 0.2:
+        logger.log(f"Player addition has finished, added {counter} players, the total number of players in the network: {len(network.players)}")
+
+    if default_random.random() < 0.3:
+        counter = 0
+        logger.log(f"T{tick}: Removing random players from the network graph!")
         for i in range(len(network.players)):
             if default_random.random() < 0.1:
                 network.remove_player_from_graph(f'P{default_random.randrange(1, len(network.players))}')
+                counter += 1
+
+        logger.log(f"Player removal has finished, removed {counter} players, the total number of players in the network: {len(network.players)}")
 
     if default_random.random() < 0.5:
+        counter = 0
+        logger.log(f"T{tick}: Moving random players!")
         if len(network.players) > 1:
             for i in range(1, len(network.players)):
+                #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
                 network.move_player_diagonally(f'P{default_random.randrange(1, len(network.players))}', 0.1)
-       
+                counter += 1
+
+        logger.log(f"Player moving has finished, moved {counter} players!")
+
+    # Dynamically increasing game server numbers if needed
+    if len(network.players) > NR_OF_GAME_SERVERS * MAX_PLAYERS_ON_SERVER:
+        NR_OF_GAME_SERVERS += 1
+
     if tick % 10 == 0 or tick == 1:
 
         sum_delay_optimization(
+        #interplayer_delay_optimization(
             network=network, 
             server_positions=network.server_positions,
             players=network.players, 
-            nr_of_servers=nr_of_servers,
-            min_players_connected=min_players_connected, 
-            max_connected_players=max_connected_players,              
-            max_allowed_delay=max_allowed_delay,
+            nr_of_servers=NR_OF_GAME_SERVERS,
+            min_players_connected=MIN_PLAYERS_ON_SERVER, 
+            max_connected_players = MAX_PLAYERS_ON_SERVER,
+            max_allowed_delay=MAX_ALLOWED_DELAY,
             debug_prints=debug_prints)
 
         network.calculate_delays(method_type="sum_delay", debug_prints=debug_prints)
@@ -78,9 +104,9 @@ for tick in range(TOTAL_TICK_COUNT):
         csv_list.append(network.calculate_server_migrations())
         csv_list.append(globvars.move_counter)
         globvars.move_counter = 0
-        for i in range (0, 5):
+        for i in range (0, 6):
             csv_list.append(network.delay_metrics[i])
-        
+        csv_list.append(network.delay_metrics[7])
         write_csv_row(csv_path, csv_list)
 
         #network.append(round(timer.get_elapsed_time()))
@@ -92,7 +118,7 @@ for tick in range(TOTAL_TICK_COUNT):
 
     if tick % 5 == 0 and not ILP_has_run:
         logger.log('--------------------------------------------------------------')
-        logger.log("Genetic algorithm started")
+        logger.log(f"T{tick}: Genetic algorithm started")
         network.clear_game_servers()
         initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
         prev_chromosome = initial_chromosome
@@ -101,7 +127,7 @@ for tick in range(TOTAL_TICK_COUNT):
         population = chromosome_to_uniform_population(initial_chromosome, population_size)
 
         generations = 1000
-        for _ in range(int(generations)):
+        for iter in range(int(generations)):
             fitness_method='sum'
             fitness_values = [fitness(network, tuple(chromosome), fitness_method, prev_chromosome=tuple(prev_chromosome)) for chromosome in population]
             
@@ -123,16 +149,11 @@ for tick in range(TOTAL_TICK_COUNT):
                 child1 = mutate_edge_servers(network, child1, mutation_rate)
                 child2 = mutate_edge_servers(network, child2, mutation_rate)
 
-                # Enforce boundaries
-                max_server_nr = 3
-                max_connected_players = 24
-                min_connected_players = 4
+                child1 = enforce_max_server_occurrences(child1, NR_OF_GAME_SERVERS)
+                child1 = enforce_min_max_players_per_server(network, child1, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER, migrate_to_edge_servers=True)
 
-                child1 = enforce_max_server_occurrences(child1, max_server_nr)
-                child1 = enforce_min_max_players_per_server(network, child1, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
-
-                child2 = enforce_max_server_occurrences(child2, max_server_nr)
-                child2 = enforce_min_max_players_per_server(network, child2, max_connected_players, min_connected_players, migrate_to_edge_servers=True)
+                child2 = enforce_max_server_occurrences(child2, NR_OF_GAME_SERVERS)
+                child2 = enforce_min_max_players_per_server(network, child2, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER, migrate_to_edge_servers=True)
 
                 offspring.extend([child1, child2])
 
@@ -154,8 +175,9 @@ for tick in range(TOTAL_TICK_COUNT):
         csv_list.append(network.calculate_server_migrations())
         csv_list.append(globvars.move_counter)
         globvars.move_counter = 0
-        for i in range (0, 5):
+        for i in range (0, 6):
             csv_list.append(network.delay_metrics[i])
+        csv_list.append(network.delay_metrics[7])
         write_csv_row(csv_path, csv_list)
 
         network.color_graph()     
@@ -164,4 +186,4 @@ for tick in range(TOTAL_TICK_COUNT):
 #network.display_plots()
 generate_GIF(save_path)
 
-logger.log("Simulation complete.")
+logger.log("Simulation completed successfully.", print_to_console=True)

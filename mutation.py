@@ -60,44 +60,51 @@ def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_co
             sorted_connected_players = sorted(connected_players, key=lambda x: network.get_shortest_path_delay(f"P{x+1}", server))
 
             drop_connected_player_indices = sorted_connected_players[int(max_connected_players):]
+            selected_servers = {srv:player_cnt for srv, player_cnt in player_count_on_servers.items() if player_cnt != 0 and srv != server}
+            closest_selected_servers = sorted(selected_servers.keys(), key=lambda srv: network.get_shortest_path_delay(srv, server))
+
             
-            # try to move the excess players to the closest server, if possible, if the server is already full try the second neighbor
-            closest_servers = network.get_closest_servers(server)
+            #closest_servers = network.get_closest_servers(server)
 
-            if migrate_to_edge_servers:
-                for srv in closest_servers:
-                    if not network.is_edge_server(srv):
-                        closest_servers.remove(srv)
-                if not closest_servers:
-                    print(f"There are no edge servers near {server}, returnin!")
-                    return
+            # if migrate_to_edge_servers:
+            #     for srv in closest_servers:
+            #         if not network.is_edge_server(srv):
+            #             closest_servers.remove(srv)
+            #     if not closest_servers:
+            #         print(f"There are no edge servers near {server}, returning!")
+            #         return
 
-            # Move dropped players to nearest servers
+            # move the excess player to the closest selected server
+            # if toggled prioritise edge servers if possible
+            # if the server is already full try the next server
             iter = drop_connected_player_indices.copy()
             for idx in iter:
-                for srv in closest_servers:
-                    if player_count_on_servers[srv] < int(max_connected_players): #and player_count_on_servers[srv] >= int(min_connected_players):
+                for srv in closest_selected_servers:
+                    if player_count_on_servers[srv] < int(max_connected_players):
                         chromosome[idx] = srv
                         player_count_on_servers[srv] += 1
                         player_count_on_servers[server] -=1
                         break
                 drop_connected_player_indices.remove(idx)
 
-            # if the nearest servers are full, move the dropped player(s) to the server with second most players
-            while len(drop_connected_player_indices) > 0:
-                iter = drop_connected_player_indices.copy()
-                # Determine servers with the second most players
-                second_most_player_count = sorted(player_count_on_servers.values())[-2]
-                second_most_players_on_servers = [srv for srv, cnt in player_count_on_servers.items() if cnt == second_most_player_count]
+            if len(drop_connected_player_indices) > 0:
+                print("We shouldn't get here")
 
-                for idx in iter:
-                    for srv in second_most_players_on_servers:
-                        if player_count_on_servers[srv] < int(max_connected_players):
-                            chromosome[idx] = srv
-                            player_count_on_servers[srv] += 1
-                            player_count_on_servers[server] -=1
-                            break
-                    drop_connected_player_indices.remove(idx)
+    for server, player_count in player_count_on_servers.items():
+        if player_count < int(min_connected_players) and player_count > 0:
+
+            connected_players = [i for i, s in enumerate(chromosome) if s == server]
+            players_to_move = connected_players.copy()
+            selected_servers = {srv:player_cnt for srv, player_cnt in player_count_on_servers.items() if player_cnt != 0 and srv != server}
+            closest_selected_servers = sorted(selected_servers.keys(), key=lambda srv: network.get_shortest_path_delay(srv, server))
+            for player in players_to_move:
+                for closest_server in closest_selected_servers:
+                    if player_count_on_servers[closest_server] + 1 >= int(min_connected_players) or player_count_on_servers[closest_server] + 1 <= int(max_connected_players):
+                        chromosome[player] = closest_server
+                        player_count_on_servers[server] -= 1
+                        player_count_on_servers[closest_server] += 1
+                        break
+                players_to_move.remove(player)
 
     return chromosome
 
