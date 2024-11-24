@@ -10,12 +10,15 @@ class NetworkGraph:
         self.modelname = modelname
         self.delay_cache = {}  # Initialize an empty cache
         self.connected_players_info = {}
+        self.connected_players_info[None] = []
         self.player_server_paths = []
         self.delay_metrics = []
         self.previous_server_to_player_delays = None
         self.server_to_player_delays = []
         self.previous_selected_servers = None
         self.selected_servers = []
+        self.selected_core_servers = []
+        self.selected_edge_servers = []
         self.best_solution = []
         self.previous_server_assignments = []
         
@@ -30,6 +33,7 @@ class NetworkGraph:
             self.server_positions = self.get_server_positions()
             self._only_servers = list(self.graph.nodes)
             self.edge_servers = self.get_edge_servers()
+            self.core_servers = self.get_core_servers()
             
 
             ranges = get_lat_long_range(config)
@@ -99,6 +103,7 @@ class NetworkGraph:
         self.connect_player_to_closest_server(player, self.server_positions)
         self.clear_delay_cache()
         self.server_to_player_delays.append((player, None, None))
+        self.connected_players_info[None].append(player)
         logger.log_function(f"Added player {player} to the network graph!")
 
     
@@ -122,6 +127,7 @@ class NetworkGraph:
         if self.remove_player_from_player_dictionary(player, debug_prints=True) is False:
             return
         self.remove_server_player_delays(player)
+        self.remove_player_from_connected_players_list(player)
         self.graph.remove_node(player)
         logger.log_function(f"Removed player {player} from the network graph!")
 
@@ -172,6 +178,14 @@ class NetworkGraph:
                 edge_servers.append(server)
         
         return edge_servers
+    
+    def get_core_servers(self):
+        core_servers = []
+        for server in self._only_servers:
+            if self.is_core_server(server):
+                core_servers.append(server)
+        
+        return core_servers
                 
     def update_player_positions(self, debug_prints, seed):
         moved_players = move_players_randomly(
@@ -300,7 +314,8 @@ class NetworkGraph:
 
     def clear_delay_cache(self):
         # this can be done better (deleting only the moved players from the delay cache)
-        return(self.delay_cache.clear())
+        self.delay_cache.clear()
+        return
     
     def clear_game_servers(self):
         # this can be done better if we are clearing only the field from the moved servers
@@ -357,6 +372,7 @@ class NetworkGraph:
     
     def set_player_server_metrics(self, solution):
         connected_players_to_server = {}
+        connected_players_to_server[None] = []
         for player_index, server_index in enumerate(solution):
             if server_index not in connected_players_to_server:
                 connected_players_to_server[server_index] = []
@@ -404,7 +420,7 @@ class NetworkGraph:
         return migration_count
     
     def calculate_migration_cost(self, old_server, new_server):
-        migration_cost_multiplier = 10
+        migration_cost_multiplier = 1
 
         if old_server:
             if old_server != new_server:
@@ -522,7 +538,7 @@ class NetworkGraph:
 
         return save_path
 
-    def calculate_qoe_metrics(self):
+    def calculate_QoE_metrics(self):
         player_scores = 0
         config_preferences = self.config['Weights']
         ping_weight = float(config_preferences['ping_weight'])
@@ -534,24 +550,35 @@ class NetworkGraph:
             ping_diff_score = calculate_ping_score(ping_act, ping_pref)
 
             # the lower the actual ping, the bigger the ping score
-            ping_act_score = 100 * 1 / ping_act
+            if ping_act:
+                ping_act_score = 100 * 1 / ping_act
+            else:
+                ping_act_score = -10
 
-            if self.graph.nodes[server]['server']['gpu'] == '1':
+            if server and self.graph.nodes[server]['server']['gpu'] == '1':
                 video_quality_diff_score = 0
             else:
                 video_quality_diff_score = 1
 
-            player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score) 
+            player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score)
 
-        self.delay_metrics.append(player_scores/len(self.players))
+        average_QoE = round(player_scores/len(self.players),2)
+
+        self.delay_metrics.append(average_QoE)
         return True
         
     # Function to calculate interplayer delay metrics
-    def calculate_delays(self, method_type, debug_prints):
+    def calculate_delays(self, method_type=None, debug_prints=False):
+        #TODO: megoldani hogy a futasok kozott ne rontsa el a connected_players_info
         self.previous_server_to_player_delays = self.server_to_player_delays
         self.previous_selected_servers = self.selected_servers
 
+       # if (method_type == "update"):
+            
+
         selected_servers = []
+        selected_core_servers = []
+        selected_edge_servers = []
         server_to_player_delays = []
         player_to_player_delays = []
         min_value = (0, 0, float('inf'))
@@ -562,7 +589,17 @@ class NetworkGraph:
 
         for server_idx, connected_players_list in self.connected_players_info.items():
             if connected_players_list:
+                if server_idx is None:
+                    for player in connected_players_list:
+                        server_to_player_delays.append((player, None, None))
+                    continue
+
                 selected_servers.append(server_idx)
+                
+                if self.is_core_server(server_idx):
+                    selected_core_servers.append(server_idx)
+                if self.is_edge_server(server_idx):
+                    selected_edge_servers.append(server_idx)
 
                 for player in connected_players_list:
                     server_to_player_delay = self.get_shortest_path_delay(player, server_idx)
@@ -576,7 +613,7 @@ class NetworkGraph:
                 player_1, server_1, delay_1 = server_to_player_delays[i]
                 player_2, server_2, delay_2 = server_to_player_delays[j]
                 if player_1 != player_2:
-                    if server_1 == server_2:
+                    if server_1 == server_2 and server_1 and server_2:
                         inter_player_delay = delay_1 + delay_2
                         player_to_player_delays.append(inter_player_delay)
 
@@ -587,7 +624,7 @@ class NetworkGraph:
 
         # Calculate metrics
         if server_to_player_delays:
-            delays_only = [delay for _, _, delay in server_to_player_delays]
+            delays_only = [delay for _, _, delay in server_to_player_delays if delay is not None]
             average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
             min_player_to_server_delay = round(min(delays_only),2)
             max_player_to_server_delay = round(max(delays_only),2)
@@ -611,8 +648,10 @@ class NetworkGraph:
                               len(selected_servers)]
         self.server_to_player_delays = server_to_player_delays
         self.selected_servers = selected_servers
+        self.selected_core_servers = selected_core_servers
+        self.selected_edge_servers = selected_edge_servers
 
-        if debug_prints:
+        if debug_prints and method_type:
             # Log the metrics
             logger.log(f"The {method_type} method selected servers are: {selected_servers}")
             logger.log(f"Average player to server delay: {average_player_to_server_delay}")
@@ -677,6 +716,12 @@ class NetworkGraph:
             return False
         else:
             return True
+        
+    def remove_player_from_connected_players_list(self, player_id):
+        for server_id, players in self.connected_players_info.items():
+            if player_id in players:
+                players.remove(player_id)
+                break
     
 
     def draw_graph(self, title, node_size=200, edge_width_factor=1.0, show_edge_labels=False, figsize=(10, 6), save=False, save_dir=None):

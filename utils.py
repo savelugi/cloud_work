@@ -225,7 +225,10 @@ def read_parameters_from_genconfig(config):
 def calculate_ping_score(actual_ping, wanted_ping):
     max_point = 100
     min_point = 0
+    negative_point = -max_point/2
     max_ping = 1.5 * wanted_ping
+    if actual_ping == None:
+        return negative_point
     if actual_ping <= wanted_ping:
         return max_point
     elif actual_ping > max_ping:
@@ -241,7 +244,7 @@ def write_csv_header(csv_path, active_models):
     for modelname in active_models:
         header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
             f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
-            f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
+            f'nr_of_selected_servers_{modelname}', f'QoE_score_{modelname}', f'sim_time_{modelname}']
 
     with open(csv_path, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -250,7 +253,7 @@ def write_csv_header(csv_path, active_models):
 def write_dynamic_csv_header(csv_path):
     header_columns = ['tick', 'model_type', 'num_players', 'nr_of_active_game_servers', 'nr_of_player_migrations', 'nr_of_server_migrations', 'nr_of_players_moved']
     header_columns += ['average_player_to_server_delay', 'min_player_to_server_delay', 'max_player_to_server_delay', 'average_player_to_player_delay',
-                       'min_player_to_player_delay', 'max_player_to_player_delay', 'qoe_score']
+                       'min_player_to_player_delay', 'max_player_to_player_delay', 'QoE_score']
     
     with open(csv_path, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -265,7 +268,7 @@ def write_ga_csv_header(csv_path, active_models):
         for modelname in active_models:
             header_columns += [f'average_player_to_server_delay_{modelname}', f'min_player_to_server_delay_{modelname}', f'max_player_to_server_delay_{modelname}',
                     f'average_player_to_player_delay_{modelname}', f'min_player_to_player_delay_{modelname}', f'max_player_to_player_delay_{modelname}', 
-                    f'nr_of_selected_servers_{modelname}', f'qoe_score_{modelname}', f'sim_time_{modelname}']
+                    f'nr_of_selected_servers_{modelname}', f'QoE_score_{modelname}', f'sim_time_{modelname}']
         
         writer.writerow(header_columns)
         

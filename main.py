@@ -60,7 +60,7 @@ if optimize:
             # Calculate metrics for the first Gurobi model
             if optimization_has_run:
                 network.calculate_delays(method_type='ILP Delay sum method', debug_prints=debug_prints)                
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -93,7 +93,7 @@ if optimize:
             # Calculate metrics for the second Gurobi model
             if optimization_has_run:
                 network.calculate_delays(method_type='ILP Interplayer delay method', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
                 network.delay_metrics = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -131,7 +131,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='Metaheuristic sum delay method', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -172,7 +172,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='Metaheuristic ipd delay method', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -214,7 +214,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='Metaheuristic sum_ipd delay method', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -265,7 +265,7 @@ if plot:
     #                   plot_type='min_player_to_player_delay_', y_label='Avg. Player-to-Player Delay [ms]',
     #                   title='Minimum Player-to-Player Delay Comparison')
     # draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
-    #                   plot_type='qoe_score_', y_label='Simulation time [s]',
+    #                   plot_type='QoE_score_', y_label='Simulation time [s]',
     #                   title='QoE comparison', invert=False)
     draw_compare_plot(*active_models, df=df_results, x='nr_of_servers', x_label='Nr. of game servers',
                       plot_type='sim_time_', y_label='Simulation time [s]',

@@ -57,7 +57,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -95,7 +95,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -132,7 +132,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -170,7 +170,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -209,7 +209,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -248,7 +248,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -286,7 +286,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -324,7 +324,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:
@@ -359,7 +359,7 @@ if optimize:
             # Calculate metrics for the metaheuristic model
             if optimization_has_run:
                 network.calculate_delays(method_type='', debug_prints=debug_prints)
-                network.calculate_qoe_metrics()
+                network.calculate_QoE_metrics()
 
                 network.delay_metrics.append(round(timer.get_elapsed_time()))
             else:

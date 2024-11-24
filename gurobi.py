@@ -5,7 +5,7 @@ from globvars import logger
 
 def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_of_servers, min_players_connected, max_connected_players, max_allowed_delay, debug_prints):
     logger.log('--------------------------------------------------------------')
-    logger.log("Sum delay optimization started")
+    logger.log("Sum delay optimization started", print_to_console=True)
     sum_model = grb.Model()
     if not debug_prints:
         # Set Gurobi parameter to suppress output
@@ -34,8 +34,12 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
 
     # 3. Constraint: Limit the number of connected players to each server
     for server in server_positions:
+        if network.is_core_server(server):
+            max_players = 2 * max_connected_players
+        else:
+            max_players = max_connected_players
         sum_model.addConstr(
-            grb.quicksum(connected_players[(player, server)] for player in players) <= max_connected_players,
+            grb.quicksum(connected_players[(player, server)] for player in players) <= max_players,
             name=f"limit_connected_players_to_server_{server}"
         )
     # 4. Constraint: Ensure a minimum number of players connected to selected servers
@@ -63,12 +67,13 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
     sum_model.optimize()
 
     if sum_model.status == GRB.OPTIMAL:
-        logger.log(f"Model 'sum_delay_optimization' has found an optimal solution.")
+        logger.log(f"Model 'sum_delay_optimization' has found an optimal solution.", print_to_console=True)
         # Initialize player_server_paths_model_1 as an empty list
         player_server_paths_model_1 = []
 
         # Dictionary to store connected players for each server
         connected_players_info_model_1 = {server: [] for server in server_positions}
+        connected_players_info_model_1[None] = []
 
         # Retrieve the selected servers and connected players
         for server_idx in server_positions:
@@ -93,16 +98,18 @@ def sum_delay_optimization(network: NetworkGraph, server_positions, players, nr_
             if not assigned:
                 network.previous_server_assignments[int(player[1:]) - 1] = None
 
-        if debug_prints:
+        
             # Print connected players for each server
             for server_idx, connected_players_list in connected_players_info_model_1.items():
                 if connected_players_list:
                     for player in connected_players_list:
                         path = network.get_shortest_path(player, server_idx)
                         player_server_paths_model_1.append((player, server_idx, path))
-                    logger.log(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}", save_log=False, print_to_console=False)
+                    if debug_prints:
+                        logger.log(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}", save_log=False, print_to_console=False)
                 else:
-                    logger.log(f"To server {server_idx} no players are connected", save_log=False, print_to_console=False)
+                    if debug_prints:
+                        logger.log(f"To server {server_idx} no players are connected", save_log=False, print_to_console=False)
     else:
         logger.log("No optimal solution found.")
         return False

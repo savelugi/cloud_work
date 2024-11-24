@@ -45,26 +45,27 @@ def chromosome_to_uniform_population(chromosome, population_size):
     return population
 
 def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_connected_players, min_connected_players, migrate_to_edge_servers=False):
-    # TODO: currently only limits the max players
     player_count_on_servers = {server: 0 for server in network._only_servers}
     for server in chromosome:
         if server != -1 and server:
             player_count_on_servers[server] += 1
 
     for server, player_count in player_count_on_servers.items():
-        if player_count > int(max_connected_players): #or player_count < int(min_connected_players):
+        if network.is_core_server(server):
+            max_players = 2 * max_connected_players
+        else:
+            max_players = max_connected_players
+
+        if player_count > int(max_players):
             # Find indices of players connected to this server
             connected_players = [i for i, s in enumerate(chromosome) if s == server]
 
             # Sort connected players by shortest path delay
             sorted_connected_players = sorted(connected_players, key=lambda x: network.get_shortest_path_delay(f"P{x+1}", server))
 
-            drop_connected_player_indices = sorted_connected_players[int(max_connected_players):]
+            drop_connected_player_indices = sorted_connected_players[int(max_players):]
             selected_servers = {srv:player_cnt for srv, player_cnt in player_count_on_servers.items() if player_cnt != 0 and srv != server}
             closest_selected_servers = sorted(selected_servers.keys(), key=lambda srv: network.get_shortest_path_delay(srv, server))
-
-            
-            #closest_servers = network.get_closest_servers(server)
 
             # if migrate_to_edge_servers:
             #     for srv in closest_servers:
@@ -80,15 +81,28 @@ def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_co
             iter = drop_connected_player_indices.copy()
             for idx in iter:
                 for srv in closest_selected_servers:
-                    if player_count_on_servers[srv] < int(max_connected_players):
+                    if player_count_on_servers[srv] < int(max_players):
                         chromosome[idx] = srv
                         player_count_on_servers[srv] += 1
                         player_count_on_servers[server] -=1
+                        drop_connected_player_indices.remove(idx)
                         break
-                drop_connected_player_indices.remove(idx)
-
             if len(drop_connected_player_indices) > 0:
-                print("We shouldn't get here")
+            # this means that there are not enough selected servers
+                closest_servers = network.get_closest_servers(server)
+                iter = drop_connected_player_indices.copy()
+                for idx in iter:
+                    for srv in closest_servers:
+                        if player_count_on_servers[srv] < int(max_players):
+                            chromosome[idx] = srv
+                            player_count_on_servers[srv] += 1
+                            player_count_on_servers[server] -=1
+                            drop_connected_player_indices.remove(idx)
+                            break
+                            
+            if len(drop_connected_player_indices) > 0:
+                print("Hmmmm....")
+
 
     for server, player_count in player_count_on_servers.items():
         if player_count < int(min_connected_players) and player_count > 0:
@@ -148,7 +162,7 @@ def fitness_sum(network: NetworkGraph, chromosome, prev_chromosome=None):
                 # this is the case when a new player was added recently to the network, and it isn't connected to a server yet, increasing fitness significantly
                 sum_delays += 1000
 
-    total_fiteness = sum_delays + migration_cost
+    total_fiteness = (sum_delays + migration_cost)/len(network.players)
     return total_fiteness
 
 @lru_cache(maxsize=None)
@@ -303,17 +317,26 @@ def mutate_servers(network: NetworkGraph, chromosome, mutation_rate, method='mov
     else:
         print(f"Method type: {method} is not found!")
 
-def mutate_edge_servers(network: NetworkGraph, chromosome, mutation_rate):
+def mutate_to_edge_servers(network: NetworkGraph, chromosome, mutation_rate):
     mutated_chromosome = chromosome.copy()
-    unique_servers = [server for server in set(chromosome) if server != -1]
+    # unique_edge_servers = []
+    # for server in set(chromosome):
+    #     if server != -1:
+    #         if server is None:
+    #             unique_edge_servers.append(server)
+    #         elif network.is_edge_server(server):
+    #             unique_edge_servers.append(server)
 
-    for server in unique_servers:
+    unique_edge_servers = network.edge_servers
+    selected_servers = [server for server in set(chromosome) if server != -1]
+
+    for server in selected_servers:
         if default_random.random() < mutation_rate:
             # in case the player isn't connected to a server yet, we connect it to a random one
             if server is None:
-                new_server = default_random.choice(unique_servers)
+                new_server = default_random.choice(unique_edge_servers)
                 while new_server == None:
-                    new_server = default_random.choice(unique_servers)
+                    new_server = default_random.choice(unique_edge_servers)
             else:
                 # in other cases we try to migrate players to edge servers
                 closest_edge_servers = network.get_closest_servers(server)
@@ -325,6 +348,7 @@ def mutate_edge_servers(network: NetworkGraph, chromosome, mutation_rate):
                 else:
                     # we can't move to an edge server so we return
                     return chromosome
+                    #continue
 
             for i in range(len(mutated_chromosome)):
                 if mutated_chromosome[i] == server:
