@@ -35,7 +35,7 @@ MAX_PLAYERS_ON_SERVER = 4
 MAX_ALLOWED_DELAY = 20
 MAX_EDGE_SERVERS = 1
 MAX_CORE_SERVERS = 2
-MIGRATION_COST = 0.7
+MIGRATION_COST = 0.1
 
 ADDING_PLAYERS = False
 REMOVING_PLAYERS = False
@@ -168,19 +168,28 @@ for tick in range(TOTAL_TICK_COUNT):
             debug_prints=False
         )
 
+        delaysum_optimization = DelaySumInitialOptimization(
+            network=network,
+            potential_servers=network.core_servers,
+            players=network.players,
+            nr_of_game_servers=MAX_CORE_SERVERS,
+            min_players_connected=MIN_PLAYERS_ON_SERVER,
+            max_connected_players=MAX_PLAYERS_ON_SERVER,
+            debug_prints=False 
+        )
+
+        interplayer_delay_optimization = InterplayerDelayInitialOptimization(
+            network=network,
+            potential_servers=network.core_servers,
+            players=network.players,
+            nr_of_game_servers=MAX_CORE_SERVERS,
+            min_players_connected=MIN_PLAYERS_ON_SERVER,
+            max_connected_players=MAX_PLAYERS_ON_SERVER,
+            debug_prints=False
+        )
+
         timer.start()
-        success = qoe_optimization.solve()
-        #delay_sum_initial(
-        #interplayer_delay_initial(
-        # qoe_optimization_initial(
-        #     network=network,
-        #     potential_servers=network.core_servers,
-        #     players=network.players, 
-        #     nr_of_game_servers=MAX_CORE_SERVERS,
-        #     min_players_connected=MIN_PLAYERS_ON_SERVER, 
-        #     max_connected_players = MAX_PLAYERS_ON_SERVER,
-        #     debug_prints=False
-        # )
+        success = interplayer_delay_optimization.solve()
         timer.stop()
 
         network.calculate_delays(method_type="", debug_prints=debug_prints)
@@ -329,22 +338,34 @@ for tick in range(TOTAL_TICK_COUNT):
             debug_prints=False
         )
 
+        delaysum_optimization_migration = DelaySumMigrationOptimization(
+            network=network,
+            fix_servers=network.selected_core_servers,
+            dynamic_servers=network.edge_servers,
+            players=network.players,
+            nr_of_game_servers=len(network.selected_core_servers)+MAX_EDGE_SERVERS,
+            min_players_connected=MIN_PLAYERS_ON_SERVER,
+            max_connected_players = MAX_PLAYERS_ON_SERVER,
+            migration_cost=MIGRATION_COST,
+            debug_prints=False
+        )
+
+        interplayer_delay_optimization_migration = InterplayerDelayMigrationOptimization(
+            network=network,
+            fix_servers=network.selected_core_servers,
+            dynamic_servers=network.edge_servers,
+            players=network.players,
+            nr_of_game_servers=len(network.selected_core_servers)+MAX_EDGE_SERVERS,
+            min_players_connected=MIN_PLAYERS_ON_SERVER,
+            max_connected_players = MAX_PLAYERS_ON_SERVER,
+            migration_cost=MIGRATION_COST,
+            debug_prints=False  
+        )
+
         timer.start()
-        success = qoe_optimization_migration.solve()
-        #delay_sum_migration(
-        #interplayer_delay_migration(
-        # qoe_optimization_migration(
-        #     network=network,
-        #     fix_servers=network.selected_core_servers,
-        #     dynamic_servers=network.edge_servers,
-        #     players=network.players,
-        #     nr_of_game_servers=len(network.selected_core_servers)+MAX_EDGE_SERVERS,
-        #     min_players_connected=MIN_PLAYERS_ON_SERVER,
-        #     max_connected_players = MAX_PLAYERS_ON_SERVER,
-        #     migration_cost=MIGRATION_COST,
-        #     debug_prints=False
-        # )
+        success = interplayer_delay_optimization_migration.solve()
         timer.stop()
+
         network.calculate_delays(method_type="sum_delay", debug_prints=debug_prints)
         network.calculate_QoE_metrics()
         csv_list.append(tick)
