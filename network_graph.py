@@ -101,7 +101,7 @@ class NetworkGraph:
         }
 
         self.connect_player_to_closest_server(player, self.server_positions)
-        self.clear_delay_cache()
+        self.clear_delay_cache() # is this needed?
         self.server_to_player_delays.append((player, None, None))
         self.connected_players_info[None].append(player)
         logger.log_function(f"Added player {player} to the network graph!")
@@ -154,18 +154,23 @@ class NetworkGraph:
             if current_server != closest_server:
                 self.graph.remove_edge(player, current_server)
                 self.graph.add_edge(player, closest_server, length=distance)
-            else:
+            elif self.graph.has_edge(player, current_server):
+                self.graph[player][current_server]['length'] = distance
                 return
         else:
             self.graph.add_edge(player, closest_server, length=distance)
 
     def is_edge_server(self, server):
+        if server is None:
+            return False
         if self.graph.nodes[server]['server']['type'] == "edge":
             return True
         else:
             return False
         
     def is_core_server(self, server):
+        if server is None:
+            return False
         if self.graph.nodes[server]['server']['type'] == "core":
             return True
         else:
@@ -406,22 +411,34 @@ class NetworkGraph:
 
         return migration_count
     
+    def calculate_total_player_migration_cost(self, migration_cost_multiplier):
+        total_migration_cost = 0
+        if not self.previous_server_to_player_delays:
+            return 0
+
+        for curr_player, curr_server, _ in self.server_to_player_delays:
+            for prev_player, prev_server, _ in self.previous_server_to_player_delays:
+                if prev_player == curr_player and prev_server != curr_server:
+                    total_migration_cost += self.get_shortest_path_delay(prev_server, curr_server) * migration_cost_multiplier
+
+        return round(total_migration_cost,2)
+    
     def calculate_server_migrations(self):
         if not self.previous_selected_servers:
             return 0
-            
         migration_count = 0
 
         set_prev = set(self.previous_selected_servers)
         set_curr = set(self.selected_servers)
 
-        migration_count = len(set_curr.symmetric_difference(set_prev))
+        removed_servers = set_prev - set_curr
+        added_servers = set_curr - set_prev
+
+        migration_count = max(len(removed_servers), len(added_servers))
 
         return migration_count
     
-    def calculate_migration_cost(self, old_server, new_server):
-        migration_cost_multiplier = 1
-
+    def calculate_migration_cost(self, old_server, new_server, migration_cost_multiplier):
         if old_server:
             if old_server != new_server:
                 if self.is_core_server(new_server):
@@ -429,7 +446,7 @@ class NetworkGraph:
                 if self.is_edge_server(new_server):
                     return self.get_shortest_path_delay(old_server, new_server) * migration_cost_multiplier * 0.5
                 
-                print("We shouldn't get here")
+                logger.log("We shouldn't get here", level="WARNING")
                 return KeyError
             else:
                 return 0
@@ -474,7 +491,7 @@ class NetworkGraph:
         node_colors = {}
         for node in self.graph.nodes():
             if node in selected_servers:
-                node_colors[node] = 'red'
+                node_colors[node] = 'yellow'
             elif node in self._only_servers:
                 node_colors[node] = 'blue'
             else:
@@ -537,44 +554,47 @@ class NetworkGraph:
         nx.write_gml(self.graph, full_save_path+".gml")
 
         return save_path
-
-    def calculate_QoE_metrics(self):
-        player_scores = 0
+    
+    def calculate_QoE(self, player, server):
+        player_score = 0
         config_preferences = self.config['Weights']
         ping_weight = float(config_preferences['ping_weight'])
         video_quality_weight = float(config_preferences['video_quality_weight'])
 
+        ping_pref = self.graph.nodes[player]['ping_preference']
+        ping_act = self.get_shortest_path_delay(player, server)
+        ping_diff_score = calculate_ping_score(ping_act, ping_pref)
+        # the lower the actual ping, the bigger the ping score
+        if ping_act:
+            ping_act_score = 100 * 1 / ping_act
+        else:
+            ping_act_score = -10
 
-        for player, server, ping_act in self.server_to_player_delays:
-            ping_pref = self.graph.nodes[player]['ping_preference']
-            ping_diff_score = calculate_ping_score(ping_act, ping_pref)
+        if server and self.graph.nodes[server]['server']['gpu'] == '1':
+            video_quality_diff_score = 0
+        else:
+            video_quality_diff_score = 1
 
-            # the lower the actual ping, the bigger the ping score
-            if ping_act:
-                ping_act_score = 100 * 1 / ping_act
-            else:
-                ping_act_score = -10
+        player_score = (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score)
+        
+        return player_score
+    
+    def calculate_QoE_metrics(self):
+        player_scores = 0
 
-            if server and self.graph.nodes[server]['server']['gpu'] == '1':
-                video_quality_diff_score = 0
-            else:
-                video_quality_diff_score = 1
-
-            player_scores += (ping_weight * (ping_act_score + ping_diff_score)) + (video_quality_weight * video_quality_diff_score)
+        for player, server, _ in self.server_to_player_delays:
+            player_scores += self.calculate_QoE(player, server)
 
         average_QoE = round(player_scores/len(self.players),2)
 
         self.delay_metrics.append(average_QoE)
         return True
-        
+
     # Function to calculate interplayer delay metrics
     def calculate_delays(self, method_type=None, debug_prints=False):
         #TODO: megoldani hogy a futasok kozott ne rontsa el a connected_players_info
         self.previous_server_to_player_delays = self.server_to_player_delays
         self.previous_selected_servers = self.selected_servers
-
-       # if (method_type == "update"):
-            
 
         selected_servers = []
         selected_core_servers = []
@@ -583,8 +603,7 @@ class NetworkGraph:
         player_to_player_delays = []
         min_value = (0, 0, float('inf'))
         max_value = (0, 0, 0)
-        #PLAYER_LOC = 1, DELAY_LOC = 3
-        SERVER_LOC = 2
+        SERVER = 2
         
 
         for server_idx, connected_players_list in self.connected_players_info.items():
@@ -606,7 +625,8 @@ class NetworkGraph:
                     server_to_player_delays.append((player, server_idx, server_to_player_delay))
 
                 if debug_prints:
-                    logger.log(f"To server {server_idx} connected players are: {', '.join(connected_players_list)}")
+                    server_type = "core" if self.is_core_server(server_idx) else "edge"
+                    logger.log(f"To {server_type} server {server_idx} connected players ({len(connected_players_list)}) are: {', '.join(connected_players_list)}")
 
         for i in range(len(server_to_player_delays)):
             for j in range(i + 1, len(server_to_player_delays)):
@@ -617,17 +637,17 @@ class NetworkGraph:
                         inter_player_delay = delay_1 + delay_2
                         player_to_player_delays.append(inter_player_delay)
 
-                        if inter_player_delay < min_value[SERVER_LOC]:
+                        if inter_player_delay < min_value[SERVER]:
                             min_value = (player_1, player_2, inter_player_delay)
-                        if inter_player_delay > max_value[SERVER_LOC]:
+                        if inter_player_delay > max_value[SERVER]:
                             max_value = (player_1, player_2, inter_player_delay)
 
         # Calculate metrics
         if server_to_player_delays:
             delays_only = [delay for _, _, delay in server_to_player_delays if delay is not None]
             average_player_to_server_delay = round(sum(delays_only) / len(delays_only),2)
-            min_player_to_server_delay = round(min(delays_only),2)
-            max_player_to_server_delay = round(max(delays_only),2)
+            min_player_to_server_delay, min_player_server_pair = min((round(delay,2), (player, server)) for player, server, delay in server_to_player_delays if delay is not None)
+            max_player_to_server_delay, max_player_server_pair = max((round(delay,2), (player, server)) for player, server, delay in server_to_player_delays if delay is not None)        
         else:
             average_player_to_server_delay = 0
             min_player_to_server_delay = 0
@@ -655,17 +675,16 @@ class NetworkGraph:
             # Log the metrics
             logger.log(f"The {method_type} method selected servers are: {selected_servers}")
             logger.log(f"Average player to server delay: {average_player_to_server_delay}")
-            logger.log(f"Minimum player to server delay: {min_player_to_server_delay}")
-            logger.log(f"Maximum player to server delay: {max_player_to_server_delay}")
+            logger.log(f"Minimum player-to-server delay: {min_player_to_server_delay} between {min_player_server_pair[0]} and {min_player_server_pair[1]}")
+            logger.log(f"Maximum player-to-server delay: {max_player_to_server_delay} between {max_player_server_pair[0]} and {max_player_server_pair[1]}")
             logger.log(f"Average interplayer delay: {average_player_to_player_delay}")
-            logger.log(f"Maximum interplayer delay: {max_value}")
-            logger.log(f"Minimum interplayer delay: {min_value}")
+            logger.log(f"Maximum interplayer delay: {round(max_value[2], 2)}")
+            logger.log(f"Minimum interplayer delay: {round(min_value[2], 2)}")
             logger.log(f"Number of player migrations: {self.calculate_player_migrations()}")
+            #logger.log(f"Total migration cost of player migrations: {self.calculate_total_player_migration_cost()}")
             logger.log(f"Number of server migrations: {self.calculate_server_migrations()}")
 
         logger.log(f"{method_type} optimization finished.")
-        logger.log('--------------------------------------------------------------')
-
 
         return True
         

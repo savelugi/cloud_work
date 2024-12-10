@@ -31,15 +31,16 @@ def generate_player_params(x_range=(0, 100), y_range=(0, 100), seed=None):
     y = round(random.uniform(y_min, y_max), 2)
     device_type = random.choice(['mobile', 'desktop'])
     game = random.choice(['NFS', 'WoW', 'CSGO'])
-    if game == 'NFS':
-        ping_preference = random.choice([40, 50, 60, 70, 80, 90])
-        video_quality_preference = random.choice([4800, 6000, 7200, 8400])
-    if game == 'WoW':
-        ping_preference = random.choice([30, 40, 50, 60])
-        video_quality_preference = random.choice([3600, 4800, 6000, 7200, 8400])
-    if game == 'CSGO':
-        ping_preference = random.choice([30, 40, 50])
-        video_quality_preference = random.choice([1200, 2400, 3600, 4800])
+    match game:
+        case'NFS':
+            ping_preference = random.choice([40, 50, 60, 70, 80, 90])
+            video_quality_preference = random.choice([4800, 6000, 7200, 8400])
+        case 'WoW':
+            ping_preference = random.choice([30, 40, 50, 60])
+            video_quality_preference = random.choice([3600, 4800, 6000, 7200, 8400])
+        case 'CSGO':
+            ping_preference = random.choice([30, 40, 50])
+            video_quality_preference = random.choice([1200, 2400, 3600, 4800])
 
     return {
             'Longitude': y,
@@ -113,6 +114,39 @@ def generate_servers():
         "S3": (100, 100)
     }
     return servers
+
+def generate_server_properties(seed=None):
+    if seed is not None:
+        random.seed(seed)
+
+    server_type = random.choice(['core', 'edge'])  # Random server type: core or edge
+    match server_type:
+        case 'core':
+            cpu = random.choice([32, 48, 64, 128])  # Random CPU value
+            memory = random.choice([32, 64, 128, 256])  # Random memory value
+            gpu = random.choices([0, 1], weights=[0.75, 0.25])[0]  # Random GPU presence: True or False
+        case 'edge':
+            cpu = random.choice([8, 16, 32])  # Random CPU value
+            memory = random.choice([8, 16, 32, 64])  # Random memory value
+            gpu = False  # Random GPU presence: True or False
+    return {'type': server_type, 'cpu': cpu, 'memory': memory, 'gpu': gpu, 'game_server': -1}
+
+def generate_link_properties(source, target):
+    bandwidth = None
+    seed = 42
+    if seed is not None:
+        random.seed(seed)
+
+    if(source == 'core' and target == 'core'):
+        bandwidth = '25G'
+    elif (source == 'core' and target == 'edge'):
+        bandwidth = '10G'
+    elif (source == 'edge' and target == 'core'):
+        bandwidth = '10G'
+    elif (source == 'edge' and target == 'edge'):
+        bandwidth = '1G'
+
+    return bandwidth
 
 def euclidean_distance(pos1: tuple, pos2: tuple) -> float:
     x1, y1 = map(float, pos1)
@@ -251,9 +285,9 @@ def write_csv_header(csv_path, active_models):
         writer.writerow(header_columns)
 
 def write_dynamic_csv_header(csv_path):
-    header_columns = ['tick', 'model_type', 'num_players', 'nr_of_active_game_servers', 'nr_of_player_migrations', 'nr_of_server_migrations', 'nr_of_players_moved']
+    header_columns = ['tick', 'model_type', 'num_players', 'nr_of_active_game_servers', 'nr_of_player_migrations', 'total_migration_cost', 'nr_of_server_migrations', 'nr_of_players_moved']
     header_columns += ['average_player_to_server_delay', 'min_player_to_server_delay', 'max_player_to_server_delay', 'average_player_to_player_delay',
-                       'min_player_to_player_delay', 'max_player_to_player_delay', 'QoE_score']
+                       'min_player_to_player_delay', 'max_player_to_player_delay', 'QoE_score', 'sim_time', 'migration_cost']
     
     with open(csv_path, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -277,7 +311,7 @@ def write_csv_row(csv_path, values):
         writer = csv.writer(file)
         writer.writerow(values)
 
-def soert(path):
+def sort(path):
     path, filename = os.path.split(path)
     filename, extension = os.path.splitext(filename)
     if filename.isdigit():
@@ -287,9 +321,8 @@ def soert(path):
 
 def generate_GIF(path):
     frames = []
-    list = sorted(glob.glob(path + '/' + '*.png'), key=soert)
+    list = sorted(glob.glob(path + '/' + '*.png'), key=sort)
     for png in list:
-    #for png in glob.glob(path + '/' + '*.png'):
         img = Image.open(png)
         frames.append(img)
 
