@@ -112,8 +112,8 @@ class DelaySumInitialOptimization(BaseOptimizationModel):
         # Objective function: minimize sum of delays
         self.model.setObjective(
             grb.quicksum(
-                self.network.get_shortest_path_delay(p, s)*self.connected_players[(p, s)]
-                for p in self.players for s in self.potential_servers
+                self.network.get_shortest_path_delay(player, server) * self.connected_players[(player, server)]
+                for player in self.players for server in self.potential_servers
             ),
             sense=GRB.MINIMIZE
         )
@@ -131,10 +131,9 @@ class DelaySumMigrationOptimization(BaseOptimizationModel):
             grb.quicksum(self.server_selected[server] for server in self.fix_servers) >= len(self.fix_servers)
         )
         
-        # Objektív: késleltetés + migrációs költség minimalizálása
         self.model.setObjective(
             grb.quicksum(
-                self.network.get_shortest_path_delay(player, server)*self.connected_players[(player, server)]
+                self.network.get_shortest_path_delay(player, server) * self.connected_players[(player, server)]
                 for player in self.players for server in self.potential_servers
             ) + grb.quicksum(
                 self.network.calculate_migration_cost(self.network.previous_server_assignments[int(player[1:]) - 1], server, self.migration_cost_val) * self.connected_players[(player, server)]
@@ -203,7 +202,7 @@ class QoEOptimizationInitial(BaseOptimizationModel):
         # Objective function: Maximize QoE 
         self.model.setObjective(
             grb.quicksum(
-                self.network.calculate_QoE(player, server)*self.connected_players[(player, server)]
+                self.network.calculate_QoE(player, server) * self.connected_players[(player, server)]
                 for player in self.players for server in self.potential_servers
             ),
             sense=GRB.MAXIMIZE

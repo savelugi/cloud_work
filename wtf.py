@@ -79,19 +79,13 @@ for iter in range(int(generations)):
         child1, child2 = crossover(parent1, parent2, method=crossover_method)
         mutation_rate = 0.001
 
-        # child1 = mutate_random_edges(network, child1, mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=False)
-        # child2 = mutate_random_edges(network, child2, mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=False)
-        child1 = mutate_players(network, child1, mutation_rate, network._only_servers)
-        child2 = mutate_players(network, child2, mutation_rate, network._only_servers)
-        #child1 = mutate_servers(network, child1, mutation_rate)
-        #child2 = mutate_servers(network, child2, mutation_rate)
+        child1 = mutate_random_edges(network, child1, mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=False)
+        child2 = mutate_random_edges(network, child2, mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=False)
+        child1 = enforce_max_server_occurrences(network, child1, MAX_CORE_SERVERS, MAX_EDGE_SERVERS)
+        child2 = enforce_max_server_occurrences(network, child1, MAX_CORE_SERVERS, MAX_EDGE_SERVERS)
 
-        #if iter % (iter+1)/2 == 0 or iter == generations:
-        #child1 = enforce_max_server_occurrences(network, child1, MAX_CORE_SERVERS, MAX_EDGE_SERVERS)
-        #child2 = enforce_max_server_occurrences(network, child1, MAX_CORE_SERVERS, MAX_EDGE_SERVERS)
-
-        #child1 = enforce_min_max_players_per_server(network, child1, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER)
-        #child2 = enforce_min_max_players_per_server(network, child1, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER)
+        child1 = enforce_min_max_players_per_server(network, child1, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER)
+        child2 = enforce_min_max_players_per_server(network, child1, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER)
 
         offspring.extend([child1, child2])
 
@@ -106,16 +100,6 @@ last_pop = sorted_pop.copy()
 best_solution = sorted_pop[0]
 
 logger.log('Genetic algorithm has found a solution with a fitness of ' + str(best_fitness), print_to_console=True)
-
-# Plot fitness improvement over generations
-# plt.figure(figsize=(10, 6))
-# plt.plot(range(1, len(fitness_per_generation) + 1), fitness_per_generation, marker='o', linestyle='-')
-# plt.title("Fitness Improvement Over Generations", fontsize=16)
-# plt.xlabel("Generation", fontsize=14)
-# plt.ylabel("Best Fitness Value", fontsize=14)
-# plt.grid()
-# plt.tight_layout()
-# plt.show()
 
 network.set_player_server_metrics(best_solution)
 network.calculate_delays("Genetic algorithm", debug_prints=True)

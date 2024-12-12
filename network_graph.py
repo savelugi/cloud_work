@@ -47,7 +47,7 @@ class NetworkGraph:
                 self.add_players_to_graph(self.players)
                 self.connect_players_to_closest_servers(self.players)
                 #TODO: static allocation, could be done dynamically
-                self.previous_server_assignments = [None] * 1000
+                self.previous_server_assignments = [None] * 10000
 
 
     def load_topology(self, topology_dir):
@@ -78,7 +78,8 @@ class NetworkGraph:
                 
         return closest_servers
     
-    def add_random_player_to_graph(self, player=None, seed=None):
+
+    def add_random_player_to_graph(self, player=None, longitude=None, latitude=None, seed=None):
         if seed is not None:
             random.seed(seed)
         # if player name wasn't given, we increment the last player name
@@ -86,8 +87,13 @@ class NetworkGraph:
             player_keys = list(self.players.keys())
             player = f"P{int(player_keys[-1][1:]) + 1}"
 
-        player_params = generate_player_params(self.long_range, self.lat_range, seed)
-        
+        if longitude is not None and latitude is not None:
+            player_params = generate_player_params(self.long_range, self.lat_range)
+            player_params['Longitude'] = longitude
+            player_params['Latitude'] = latitude
+        else:
+            player_params = generate_player_params(self.long_range, self.lat_range, seed)
+
         self.graph.add_node(player, **player_params)
         
         self.players[player] = {
@@ -105,6 +111,7 @@ class NetworkGraph:
         self.server_to_player_delays.append((player, None, None))
         self.connected_players_info[None].append(player)
         logger.log_function(f"Added player {player} to the network graph!")
+        return player
 
     
     def add_players_to_graph(self, nodes):
@@ -223,7 +230,7 @@ class NetworkGraph:
                 logger.log_function(
                     f"Moved player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
                     f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to ({round(new_x, 2)}, "
-                    f"{round(self.graph.nodes[player_id]['Latitude'], 2)})"
+                    f"{round(self.graph.nodes[player_id]['Latitude'], 2)})",level="DEBUG"
                 )
 
         self.graph.nodes[player_id]['Longitude'] = new_x
@@ -245,7 +252,7 @@ class NetworkGraph:
                 logger.log_function(
                     f"Moved player {player_id}: from ({round(self.graph.nodes[player_id]['Longitude'], 2)}, "
                     f"{round(self.graph.nodes[player_id]['Latitude'], 2)}) to "
-                    f"({round(self.graph.nodes[player_id]['Longitude'], 2)}, {round(new_y, 2)})"
+                    f"({round(self.graph.nodes[player_id]['Longitude'], 2)}, {round(new_y, 2)})", level="DEBUG",
                 )
 
         self.graph.nodes[player_id]['Latitude'] = new_y
@@ -274,6 +281,26 @@ class NetworkGraph:
         if debug_prints:
             logger.log_function(f"Moved player {player_id} diagonally from ({old_x}, {old_y}) to ({self.players[player_id]['Longitude']}, {self.players[player_id]['Latitude']})")
 
+    def move_player_randomly(self, player_id, distx, disty, debug_prints=False):
+        old_move_counter = globvars.move_counter
+        if player_id not in self.players:
+            if debug_prints:
+                logger.log_function(f"Player {player_id} is not amongst the players returning!")
+            return
+        self.move_player_horizontally(player_id, distx, debug_prints=debug_prints)
+        self.move_player_vertically(player_id, disty, debug_prints=debug_prints)
+        # count random diagonal move as one
+        if globvars.move_counter - old_move_counter == 2:
+            globvars.move_counter -= 1
+
+    def move_players_white_noise(self, range_x, range_y, debug_prints=False):
+        for player in self.players:
+            defrandom = random.Random()
+            dx = defrandom.uniform(-range_x, range_x)
+            dy = defrandom.uniform(-range_y, range_y)
+            self.move_player_randomly(player,dx,dy,debug_prints=debug_prints)
+
+    
     def migrate_edge_servers_if_beneficial(self, player):
        # TODO: very csunya, ne igy csinald!#############
         from mutation import convert_ILP_to_chromosome, chromosome_to_uniform_population
@@ -296,6 +323,8 @@ class NetworkGraph:
         # Check if the delay for the given nodes is already cached
         cached_delay = self.delay_cache.get((node1, node2))
         if cached_delay is not None:
+            if not isinstance(cached_delay, (int, float)):
+                raise TypeError(f"Cached delay must be numeric, got {type(cached_delay)}")
             return cached_delay
         
         try:
@@ -418,7 +447,7 @@ class NetworkGraph:
 
         for curr_player, curr_server, _ in self.server_to_player_delays:
             for prev_player, prev_server, _ in self.previous_server_to_player_delays:
-                if prev_player == curr_player and prev_server != curr_server:
+                if prev_player == curr_player and prev_server != curr_server and prev_server is not None:
                     total_migration_cost += self.get_shortest_path_delay(prev_server, curr_server) * migration_cost_multiplier
 
         return round(total_migration_cost,2)
@@ -583,7 +612,8 @@ class NetworkGraph:
         player_scores = 0
 
         for player, server, _ in self.server_to_player_delays:
-            player_scores += self.calculate_QoE(player, server)
+            if server !=-1 and server is not None:
+                player_scores += self.calculate_QoE(player, server)
 
         average_QoE = round(player_scores/len(self.players),2)
 

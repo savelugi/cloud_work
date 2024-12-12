@@ -257,6 +257,8 @@ def read_parameters_from_genconfig(config):
     return param_combinations
 
 def calculate_ping_score(actual_ping, wanted_ping):
+    if not isinstance(actual_ping, (int, float)) or not isinstance(wanted_ping, (int, float)):
+        raise TypeError("Ping values must be numeric!")
     max_point = 100
     min_point = 0
     negative_point = -max_point/2

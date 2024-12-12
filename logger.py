@@ -11,6 +11,12 @@ class Logger:
         self.save_log = save_log
         self.min_level = min_level
 
+    def set_log_level(self, level):
+        if level in self.LEVELS:
+            self.min_level = level
+        else:
+            raise ValueError(f"Invalid log level: {level}. Available levels are: {', '.join(self.LEVELS.keys())}")
+
     def set_log_file(self, log_file):
         self.log_file = log_file
         log_dir = os.path.dirname(log_file)
