@@ -175,42 +175,31 @@ def enforce_min_max_players_per_serverr(network: NetworkGraph, chromosome, max_c
     return chromosome
 
 
-def enforce_max_server_occurrencess(network: NetworkGraph, chromosome, max_core_server, max_edge_server):
-    selected_core_servers = []
-    selected_edge_servers = []
+def enforce_max_server_occurrencess(chromosome, max_server_nr):
+    server_counts = {}
     for server in set(chromosome):
-        if server != -1 and server is not None:
-            #server_counts[server] = chromosome.count(server)
-            if network.is_core_server(server):
-                selected_core_servers.append(server)
-            elif network.is_edge_server(server):
-                selected_edge_servers.append(server)
+        if server != -1 and server:
+            server_counts[server] = chromosome.count(server)
 
-    if len(selected_core_servers) < int(max_core_server) and len(selected_edge_servers) < int(max_edge_server):
+    if len(server_counts) <= int(max_server_nr):
         return chromosome
 
-    default_random.shuffle(selected_core_servers)
-    default_random.shuffle(selected_edge_servers)
+    servers = [server for server, count in server_counts.items() if count >= 1]
+    default_random.shuffle(servers)
 
-
-    core_servers_to_keep = selected_core_servers[:int(max_core_server)]
-    edge_servers_to_keep = selected_edge_servers[:int(max_edge_server)]
-
+    servers_to_keep = servers[:int(max_server_nr)]
 
     updated_chromosome = []
     for server in chromosome:
         # player is not in the network so keep the server value (-1)
         if server == -1:
             updated_chromosome.append(server)
-        elif server in core_servers_to_keep or server in edge_servers_to_keep:
+        elif server in servers_to_keep:
             updated_chromosome.append(server)
-        elif len(edge_servers_to_keep) > 0:
-            updated_chromosome.append(default_random.choice(edge_servers_to_keep))
         else:
-            updated_chromosome.append(default_random.choice(core_servers_to_keep))
+            updated_chromosome.append(default_random.choice(servers_to_keep))
 
     return updated_chromosome
-
 
 @lru_cache(maxsize=None)
 def enforce_min_max_players_per_server(network: NetworkGraph, chromosome, max_connected_players, min_connected_players):

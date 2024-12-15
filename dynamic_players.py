@@ -9,7 +9,7 @@ import globvars
 from globvars import logger
 import math
 
-TOTAL_TICK_COUNT = 80
+TOTAL_TICK_COUNT = 500
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 save_dir = os.path.join(dir_path, "saves/dynamic/")
@@ -28,25 +28,25 @@ logger.set_log_file(log_path)
 logger.set_log_level("INFO")
 
 debug_prints = True
-INITIAL_PLAYER_NUMBER = 70
-network = NetworkGraph(modelname='ilp_sum', config=config, num_gen_players=INITIAL_PLAYER_NUMBER)
-NR_OF_GAME_SERVERS = 7
+INITIAL_PLAYER_NUMBER = 96
+network = NetworkGraph(modelname='ilp_ipd', config=config, num_gen_players=INITIAL_PLAYER_NUMBER)
+NR_OF_GAME_SERVERS = 3
+#NR_OF_GAME_SERVERS = len(network._only_servers)
 MIN_PLAYERS_ON_SERVER = 4
-MAX_PLAYERS_ON_SERVER = 32
-MAX_ALLOWED_DELAY = 20
-#MAX_EDGE_SERVERS = 1
-MAX_EDGE_SERVERS = len(network.edge_servers)
-#MAX_CORE_SERVERS = 2
-MAX_CORE_SERVERS = len(network.core_servers)
-MIGRATION_COST = 0
+MAX_PLAYERS_ON_SERVER = 16
+MAX_EDGE_SERVERS = 2
+#MAX_EDGE_SERVERS = len(network.edge_servers)
+MAX_CORE_SERVERS = 2
+#MAX_CORE_SERVERS = len(network.core_servers)
+MIGRATION_COST = 0.2
 
-
+CIRCULAR_MOVEMENT = False
 DAYNIGHTCYCLE = False
-ADDING_PLAYERS = True
-REMOVING_PLAYERS = True
+ADDING_PLAYERS = False
+REMOVING_PLAYERS = False
 MOVING_PLAYERS = True
-GEN_OPT = False
-GUROBI_OPT = True
+GEN_OPT = True
+GUROBI_OPT = False
 
 tick = 0
 last_pop = []
@@ -76,8 +76,12 @@ timertwo = Timer()
 timertwosum = 0
 timerthree = Timer()
 timerthreesum = 0
+added_players = False
+removed_players = False
 
 players_to_remove = []
+last_optimized_delay = None
+last_optimized_player_count = len(network.players)
 
 for tick in range(TOTAL_TICK_COUNT):
     default_random = random.Random()
@@ -112,65 +116,64 @@ for tick in range(TOTAL_TICK_COUNT):
 
         logger.log(f"Player removal has finished, removed {counter} players, the total number of players in the network: {len(network.players)}")
         removed_players = True
+    
     # for circular movement simulation
-    # if MOVING_PLAYERS and tick in range(2,21):
-    #     counter = 0
-    #     logger.log(f"T{tick}: Moving players!")
-    #     if len(network.players) > 1:
-    #         for player in ['P1', 'P7', 'P11', 'P13']: #, 'P28', 'P37', 'P45', 'P99', 'P100'
-    #             #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
-    #             network.move_player_vertically(player,-0.9,debug_prints=True)
-    #             counter += 1
+    if CIRCULAR_MOVEMENT:
+        if MOVING_PLAYERS and tick in range(2,21):
+            counter = 0
+            logger.log(f"T{tick}: Moving players!")
+            if len(network.players) > 1:
+                for player in ['P1', 'P7', 'P11', 'P13', 'P28', 'P37', 'P45', 'P99', 'P100']: #, 'P28', 'P37', 'P45', 'P99', 'P100'
+                    #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
+                    network.move_player_vertically(player,-0.9,debug_prints=True)
+                    counter += 1
 
-    #     logger.log(f"Player moving has finished, moved {counter} players!")
+            logger.log(f"Player moving has finished, moved {counter} players!")
 
-    # if MOVING_PLAYERS and tick in range(21,41):
-    #     counter = 0
-    #     logger.log(f"T{tick}: Moving players!")
-    #     if len(network.players) > 1:
-    #         for player in ['P1', 'P7', 'P11', 'P13']:
-    #             #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
-    #             network.move_player_horizontally(player,2.2,debug_prints=True)
-    #             counter += 1
+        if MOVING_PLAYERS and tick in range(21,41):
+            counter = 0
+            logger.log(f"T{tick}: Moving players!")
+            if len(network.players) > 1:
+                for player in ['P1', 'P7', 'P11', 'P13', 'P28', 'P37', 'P45', 'P99', 'P100']:
+                    #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
+                    network.move_player_horizontally(player,2.2,debug_prints=True)
+                    counter += 1
 
-    #     logger.log(f"Player moving has finished, moved {counter} players!")
+            logger.log(f"Player moving has finished, moved {counter} players!")
 
-    # if MOVING_PLAYERS and tick in range(41,61):
-    #     counter = 0
-    #     logger.log(f"T{tick}: Moving players!")
-    #     if len(network.players) > 1:
-    #         for player in ['P1', 'P7', 'P11', 'P13']:
-    #             #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
-    #             network.move_player_vertically(player,0.75,debug_prints=True)
-    #             counter += 1
+        if MOVING_PLAYERS and tick in range(41,61):
+            counter = 0
+            logger.log(f"T{tick}: Moving players!")
+            if len(network.players) > 1:
+                for player in ['P1', 'P7', 'P11', 'P13', 'P28', 'P37', 'P45', 'P99', 'P100']:
+                    #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
+                    network.move_player_vertically(player,0.75,debug_prints=True)
+                    counter += 1
 
-    #     logger.log(f"Player moving has finished, moved {counter} players!")
+            logger.log(f"Player moving has finished, moved {counter} players!")
 
-    # if MOVING_PLAYERS and tick in range(61,81):
-    #     counter = 0
-    #     logger.log(f"T{tick}: Moving players!")
-    #     if len(network.players) > 1:
-    #         for player in ['P1', 'P7', 'P11', 'P13']:
-    #             #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
-    #             network.move_player_horizontally(player,-2.2,debug_prints=True)
-    #             counter += 1
+        if MOVING_PLAYERS and tick in range(61,81):
+            counter = 0
+            logger.log(f"T{tick}: Moving players!")
+            if len(network.players) > 1:
+                for player in ['P1', 'P7', 'P11', 'P13', 'P28', 'P37', 'P45', 'P99', 'P100']:
+                    #debug prints can be toggled with the debug_prints argument (warning can flood logs when player count is high)
+                    network.move_player_horizontally(player,-2.2,debug_prints=True)
+                    counter += 1
 
-    #     logger.log(f"Player moving has finished, moved {counter} players!")
+            logger.log(f"Player moving has finished, moved {counter} players!")
 
     # for whitenoise sim
     if MOVING_PLAYERS and tick > 1:
-        network.move_players_white_noise(range_x=(network.lat_range[1]-network.lat_range[0])/20,range_y=(network.long_range[1]-network.long_range[0])/20,debug_prints=True)
+       network.move_players_white_noise(range_x=(network.lat_range[1]-network.lat_range[0])/20,range_y=(network.long_range[1]-network.long_range[0])/20,debug_prints=True)
 
     if DAYNIGHTCYCLE:
-        scale = 3  # A skálázás a long_range és lat_range lépései között
+        scale = 1 # A skálázás a long_range és lat_range lépései között
         latitudes = list(range(network.long_range[0], network.long_range[1], scale))  # 5 db
         longitudes= list(range(network.lat_range[0], network.lat_range[1], scale))    # 11 db
-
+        
         total_columns = len(longitudes)  # Összes oszlop száma 11
         ticks_per_column = int((TOTAL_TICK_COUNT * 0.75 ) // total_columns ) # Tickek oszloponként
-
-        # if tick > 1:
-        #     network.move_players_white_noise(range_x=2.5,range_y=2.5,debug_prints=True)
 
         if tick % ticks_per_column == 0:
             if tick // ticks_per_column <= total_columns:
@@ -213,46 +216,67 @@ for tick in range(TOTAL_TICK_COUNT):
         #     logger.log(f"Number of maximum core servers:{MAX_CORE_SERVERS}")
 
 
+    run_migration_due_to_threshold = False
+    if last_optimized_delay is not None:
+        current_delay = network.delay_metrics[0]
+        if current_delay > 1.2 * last_optimized_delay:
+            logger.log(f"Average delay increased by more than 20% since last optimization (from {last_optimized_delay} to {current_delay}). Running migration optimization.")
+            run_migration_due_to_threshold = True
+    run_migration_due_to_threshold = False
+
+    current_player_count = len(network.players)
+    run_migration_due_to_player_count_change = False
+    if last_optimized_player_count is not None and last_optimized_player_count > 0:
+        if (current_player_count > 1.1 * last_optimized_player_count) or (current_player_count < 0.9 * last_optimized_player_count):
+            logger.log("Player count changed by more than 10% since last optimization. Will run optimization.")
+            run_migration_due_to_player_count_change = True
+    run_migration_due_to_player_count_change = False
+
+
     if GUROBI_OPT and tick == 1:
+    #if GUROBI_OPT and tick:
+
         timer.start()
         # qoe_optimization = QoEOptimizationInitial(
+        #     network=network,
+        #     potential_servers=network._only_servers,
+        #     players=network.players,
+        #     nr_of_game_servers=NR_OF_GAME_SERVERS,
+        #     min_players_connected=MIN_PLAYERS_ON_SERVER,
+        #     max_connected_players=MAX_PLAYERS_ON_SERVER,
+        #     debug_prints=True
+        # )
+
+        # delaysum_optimization = DelaySumInitialOptimization(
         #     network=network,
         #     potential_servers=network.core_servers,
         #     players=network.players,
         #     nr_of_game_servers=MAX_CORE_SERVERS,
         #     min_players_connected=MIN_PLAYERS_ON_SERVER,
         #     max_connected_players=MAX_PLAYERS_ON_SERVER,
-        #     debug_prints=False
+        #     debug_prints=False 
         # )
 
-        delaysum_optimization = DelaySumInitialOptimization(
+        interplayer_delay_optimization = InterplayerDelayInitialOptimization(
             network=network,
             potential_servers=network.core_servers,
             players=network.players,
             nr_of_game_servers=NR_OF_GAME_SERVERS,
             min_players_connected=MIN_PLAYERS_ON_SERVER,
             max_connected_players=MAX_PLAYERS_ON_SERVER,
-            debug_prints=False 
+            debug_prints=True
         )
 
-        # interplayer_delay_optimization = InterplayerDelayInitialOptimization(
-        #     network=network,
-        #     potential_servers=network.core_servers,
-        #     players=network.players,
-        #     nr_of_game_servers=MAX_CORE_SERVERS,
-        #     min_players_connected=MIN_PLAYERS_ON_SERVER,
-        #     max_connected_players=MAX_PLAYERS_ON_SERVER,
-        #     debug_prints=False
-        # )
-
         
-        success = delaysum_optimization.solve()
+        success = interplayer_delay_optimization.solve()
         if success is False:
             raise ValueError("Optimization failed!")
 
         timer.stop()
 
         network.calculate_delays(method_type="", debug_prints=debug_prints)
+        last_optimized_delay = network.delay_metrics[0]
+        last_optimized_player_count = len(network.players)
         network.calculate_QoE_metrics()
         csv_list.append(tick)
         csv_list.append('ILP')
@@ -273,30 +297,33 @@ for tick in range(TOTAL_TICK_COUNT):
 
 
         network.color_graph()
-        network.draw_graph(title=str(tick).zfill(4) + '_' + 'Gurobi' + '_' + f"{len(network.players)}_{NR_OF_GAME_SERVERS}_{len(network.selected_core_servers)}_{len(network.selected_edge_servers)}", figsize=(20,20), save=True, save_dir=save_path)
+        network.draw_graph(title=str(tick).zfill(4) + '_' + 'Gurobi' + '_' + f"{len(network.players)}_{NR_OF_GAME_SERVERS}_{len(network.selected_core_servers)}_{len(network.selected_edge_servers)}", figsize=(12,8), save=True, save_dir=save_path)
 
         ILP_has_run = True
 
-    if GEN_OPT and tick % 5 == 0 and not ILP_has_run or (GEN_OPT and tick == 1):
+    if (0 and GEN_OPT and tick % 10 == 0 and not ILP_has_run ) or tick == 1: #or run_migration_due_to_threshold or run_migration_due_to_player_count_change):
         logger.log(f"T{tick}: Genetic algorithm started", print_to_console=True)
         network.clear_game_servers()
-        #initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
-        #prev_chromosome = initial_chromosome
+        initial_chromosome = convert_ILP_to_chromosome(network.server_to_player_delays)
+        prev_chromosome = initial_chromosome
 
-        population_size = 100
-        #population = chromosome_to_uniform_population(initial_chromosome, population_size)
-        if tick == 1 or added_players or removed_players:
-            if tick == 25:
-                print(network.players)
-            population = initial_population(network.players, network._only_servers, population_size) 
+        population_size = 250
+        #if added_players or removed_players:
+        # if tick == 10:
+        #     population = chromosome_to_uniform_population(initial_chromosome, population_size)
+
+            #population = initial_population(network.players, network._only_servers, population_size) 
+        if tick == 1:
+            population = initial_population(network.players, network._only_servers, population_size)
         else:
             population = last_pop
-        generations = 1000
-        bigtimer.start()
+
+        generations = 1500
+        timer.start()
         for iter in range(int(generations)):
             fitnesstimer.start()
-            fitness_method='fitness_sum'
-            fitness_values = [fitness_sum(
+            fitness_method='fitness'
+            fitness_values = [fitness_ipd(
                                 network,
                                 tuple(chromosome),
                                 max_core_server_nr=MAX_CORE_SERVERS,
@@ -315,7 +342,8 @@ for tick in range(TOTAL_TICK_COUNT):
             best_fitness = fitness_values[population.index(best_solution)]
 
             selection_strategy = 'rank_based'
-            tournament_size = '5'
+            selection_strategy = 'tournament'
+            tournament_size = '4'
             parents = selection(population, fitness_values, selection_strategy, tournament_size)
             
             whiletimer.start()
@@ -323,22 +351,28 @@ for tick in range(TOTAL_TICK_COUNT):
             while len(offspring) < population_size - len(parents):
                 parent1, parent2 = default_random.sample(parents, 2)
                 crossover_method = 'single_point'
+                crossover_method = 'uniform'
                 child1, child2 = crossover(parent1, parent2, method=crossover_method)
                 mutatiod_method = 'mut_servers'
                 mutation_rate = 0.01
                 timerone.start()
-                # child1 = mutate_random_edges(network, tuple(child1), mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
-                # child2 = mutate_random_edges(network, tuple(child2), mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
-                child1 = mutate_servers(network, child1, mutation_rate)
-                child2 = mutate_servers(network, child2, mutation_rate)
+                child1 = mutate_random_edges(network, tuple(child1), mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
+                child2 = mutate_random_edges(network, tuple(child2), mutation_rate, max_edge_servers=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
+                #child1 = mutate_servers(network, child1, mutation_rate)
+                #child2 = mutate_servers(network, child2, mutation_rate)
+                # child1 = mutate_players(network, child1, mutation_rate, network._only_servers)
+                # child2 = mutate_players(network, child2, mutation_rate, network._only_servers)
                 timerone.stop()
                 timeronesum += timerone.get_elapsed_time()
                 
                 timertwo.start()
+                #this should be used when migrating edge servers
                 child1 = enforce_max_server_occurrences(network=network, chromosome=tuple(child1), max_core_server=MAX_CORE_SERVERS if tick == 1 else MAX_CORE_SERVERS,
                                                          max_edge_server=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
                 child2 = enforce_max_server_occurrences(network=network, chromosome=tuple(child2), max_core_server=MAX_CORE_SERVERS if tick == 1 else MAX_CORE_SERVERS,
                                                          max_edge_server=MAX_EDGE_SERVERS, initial=True if tick == 1 else False)
+                # child1 = enforce_max_server_occurrencess(child1, NR_OF_GAME_SERVERS)
+                # child2 = enforce_max_server_occurrencess(child2, NR_OF_GAME_SERVERS)
                 timertwo.stop()
                 timertwosum += timertwo.get_elapsed_time()
                 
@@ -358,14 +392,16 @@ for tick in range(TOTAL_TICK_COUNT):
         sorted_pop = sorted(population, key=lambda x: fitness_values[population.index(x)])
         last_pop = sorted_pop.copy()
         best_solution = sorted_pop[0]
-        bigtimer.stop()
-        bigtimersum += bigtimer.get_elapsed_time()
+        timer.stop()
+        #bigtimersum += bigtimer.get_elapsed_time()
         logger.log('Genetic algorithm has found a solution with a fitness of ' + str(best_fitness), print_to_console=True)
         success = constraints_are_met(network, best_solution, MAX_CORE_SERVERS, MAX_EDGE_SERVERS, MAX_PLAYERS_ON_SERVER, MIN_PLAYERS_ON_SERVER)
         logger.log(f'Constraints are{" " if success == 0 else " not " }met ({success})', print_to_console=True)
-        logger.log(f"timersums: {bigtimersum}, {fitnesstimersum}, {whiletimersum}, {timeronesum}, {timertwosum}, {timerthreesum}", level="DEBUG", print_to_console=False)
+      #  logger.log(f"timersums: {bigtimersum}, {fitnesstimersum}, {whiletimersum}, {timeronesum}, {timertwosum}, {timerthreesum}", level="DEBUG", print_to_console=False)
         network.set_player_server_metrics(best_solution)
         network.calculate_delays("Genetic algorithm", debug_prints=True)
+        last_optimized_delay = network.delay_metrics[0]
+        last_optimized_player_count = len(network.players)
         network.calculate_QoE_metrics()
 
         csv_list.append(tick)
@@ -380,7 +416,7 @@ for tick in range(TOTAL_TICK_COUNT):
         for i in range (0, 6):
             csv_list.append(network.delay_metrics[i])
         csv_list.append(network.delay_metrics[7])
-        csv_list.append(round(bigtimer.get_elapsed_time()))
+        csv_list.append(round(timer.get_elapsed_time()))
         write_csv_row(csv_path, csv_list)
 
         network.color_graph()     
@@ -390,7 +426,7 @@ for tick in range(TOTAL_TICK_COUNT):
         added_players = False
         removed_players = False
     
-    if GUROBI_OPT and tick % 5 == 0 and not ILP_has_run:
+    if (GUROBI_OPT and (0 and (tick == 101 or tick == 201 or tick == 301 or tick == 401)) and not ILP_has_run): #run_migration_due_to_threshold or run_migration_due_to_player_count_change
         timer.start()
         # qoe_optimization_migration = QoEOptimizationMigration(
         #     network=network,
@@ -416,36 +452,38 @@ for tick in range(TOTAL_TICK_COUNT):
         #     debug_prints=False
         # )
 
-        # interplayer_delay_optimization_migration = InterplayerDelayMigrationOptimization(
-        #     network=network,
-        #     fix_servers=network.selected_core_servers,
-        #     dynamic_servers=network.edge_servers,
-        #     players=network.players,
-        #     nr_of_game_servers=len(network.selected_core_servers)+MAX_EDGE_SERVERS,
-        #     min_players_connected=MIN_PLAYERS_ON_SERVER,
-        #     max_connected_players = MAX_PLAYERS_ON_SERVER,
-        #     migration_cost=MIGRATION_COST,
-        #     debug_prints=False  
-        # )
-
-        delaysum_optimization = DelaySumInitialOptimization(
+        interplayer_delay_optimization_migration = InterplayerDelayMigrationOptimization(
             network=network,
-            potential_servers=network._only_servers,
+            fix_servers=network.selected_core_servers,
+            dynamic_servers=network.edge_servers,
             players=network.players,
-            nr_of_game_servers=NR_OF_GAME_SERVERS,
+            nr_of_game_servers=len(network.selected_core_servers)+MAX_EDGE_SERVERS,
             min_players_connected=MIN_PLAYERS_ON_SERVER,
-            max_connected_players=MAX_PLAYERS_ON_SERVER,
-            debug_prints=False 
+            max_connected_players = MAX_PLAYERS_ON_SERVER,
+            migration_cost=MIGRATION_COST,
+            debug_prints=False  
         )
 
+        # delaysum_optimization = DelaySumInitialOptimization(
+        #     network=network,
+        #     potential_servers=network._only_servers,
+        #     players=network.players,
+        #     nr_of_game_servers=NR_OF_GAME_SERVERS,
+        #     min_players_connected=MIN_PLAYERS_ON_SERVER,
+        #     max_connected_players=MAX_PLAYERS_ON_SERVER,
+        #     debug_prints=False 
+        # )
+
         print('optimization started')
-        success = delaysum_optimization.solve()
+        success = interplayer_delay_optimization_migration.solve()
         if success is False:
             raise ValueError("Optimization failed!")
         print('optimization finished')
         timer.stop()
 
         network.calculate_delays(method_type="sum_delay", debug_prints=debug_prints)
+        last_optimized_delay = network.delay_metrics[0]
+        last_optimized_player_count = len(network.players)
         network.calculate_QoE_metrics()
         csv_list.append(tick)
         csv_list.append('ILP')
@@ -463,10 +501,10 @@ for tick in range(TOTAL_TICK_COUNT):
         csv_list.append(MIGRATION_COST)
         write_csv_row(csv_path, csv_list)
         network.color_graph()
-        network.draw_graph(title=str(tick).zfill(4) + '_' + 'Gurobi mig' + '_' + f"{len(network.players)}_{NR_OF_GAME_SERVERS}_{len(network.selected_core_servers)}_{len(network.selected_edge_servers)}", figsize=(20,20), save=True, save_dir=save_path)
+        network.draw_graph(title=str(tick).zfill(4) + '_' + 'Gurobi mig' + '_' + f"{len(network.players)}_{NR_OF_GAME_SERVERS}_{len(network.selected_core_servers)}_{len(network.selected_edge_servers)}", figsize=(12,8), save=True, save_dir=save_path)
         ILP_has_run = True
 
-    if(tick > 1 and not ILP_has_run and not GEN_has_run):
+    if (tick > 1 and not ILP_has_run and not GEN_has_run):
         network.calculate_delays(method_type="update", debug_prints=debug_prints)
         network.calculate_QoE_metrics()
         csv_list.append(tick)
